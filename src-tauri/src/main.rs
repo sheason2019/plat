@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 pub mod daemon;
+pub mod core;
 
 #[tokio::main]
 async fn main() {
