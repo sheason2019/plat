@@ -1,0 +1,44 @@
+import { ReactNode } from "react";
+import clsx from "clsx";
+import { Button } from "@nextui-org/react";
+import { Link } from "@tanstack/react-router";
+
+interface Props {
+  title: ReactNode;
+  backHref?: string;
+}
+
+export default function Header({ title, backHref }: Props) {
+  return (
+    <div
+      className={clsx(
+        "bg-blue-50 backdrop-blur-md shadow-sm sticky top-0",
+        "flex items-center px-3 h-12 md:h-14"
+      )}
+    >
+      {backHref && (
+        <Button
+          isIconOnly
+          variant="light"
+          className="mr-2"
+          as={Link}
+          to={backHref}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width={28}
+            height={28}
+            fill="currentColor"
+            viewBox="0 0 16 16"
+          >
+            <path
+              fillRule="evenodd"
+              d="M12 8a.5.5 0 0 1-.5.5H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H11.5a.5.5 0 0 1 .5.5z"
+            />
+          </svg>
+        </Button>
+      )}
+      <h1 className="text-2xl whitespace-nowrap">{title}</h1>
+    </div>
+  );
+}

@@ -57,6 +57,17 @@ impl Profile {
         profile
     }
 
+    pub fn get_instance() -> &'static Profile {
+        static mut INSTANCE: Option<Profile> = None;
+
+        unsafe {
+            if INSTANCE.is_none() {
+                INSTANCE = Some(Profile::init());
+            }
+            &INSTANCE.as_ref().unwrap()
+        }
+    }
+
     // 将 Profile 持久化保存到本地
     pub fn save(&self) {
         let data_path = Path::new("./data");
@@ -103,4 +114,14 @@ fn test_save() {
     let mut p = Profile::init();
     p.generate_isolate().expect("generate isolate failed");
     p.save();
+}
+
+#[test]
+fn test_get_instance() {
+    let instance_a = Profile::get_instance();
+    let instance_b = Profile::get_instance();
+
+    if !std::ptr::eq(instance_a, instance_b) {
+        panic!("instance not equal");
+    }
 }
