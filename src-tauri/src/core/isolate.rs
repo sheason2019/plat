@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct Isolate {
-    public_key: String,
+    pub public_key: String,
     private_key: String,
 }
 
@@ -26,8 +26,8 @@ impl Isolate {
         };
         let public_key_bytes = keypair.public_key().as_ref();
 
-        let public_key = BASE64_STANDARD.encode(public_key_bytes);
-        let private_key = BASE64_STANDARD.encode(pkcs8_bytes);
+        let public_key = BASE64_URL_SAFE.encode(public_key_bytes);
+        let private_key = BASE64_URL_SAFE.encode(pkcs8_bytes);
 
         Ok(Isolate {
             public_key,
@@ -36,7 +36,7 @@ impl Isolate {
     }
 
     pub fn create_sig_box(&self, message: Vec<u8>) -> SignatureBox {
-        let pkcs8_bytes = BASE64_STANDARD
+        let pkcs8_bytes = BASE64_URL_SAFE
             .decode(self.private_key.clone())
             .expect("base64 decode failed");
 
@@ -44,9 +44,9 @@ impl Isolate {
         let sig = keypair.sign(&message);
 
         SignatureBox {
-            message: BASE64_STANDARD.encode(message),
+            message: BASE64_URL_SAFE.encode(message),
             public_key: self.public_key.clone(),
-            sig: BASE64_STANDARD.encode(sig),
+            sig: BASE64_URL_SAFE.encode(sig),
         }
     }
 }

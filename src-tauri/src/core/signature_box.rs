@@ -13,14 +13,14 @@ impl SignatureBox {
     pub fn verify(&self) -> Result<(), ring::error::Unspecified> {
         let public_key = signature::UnparsedPublicKey::new(
             &signature::ED25519,
-            BASE64_STANDARD.decode(self.public_key.clone()).unwrap(),
+            BASE64_URL_SAFE.decode(self.public_key.clone()).unwrap(),
         );
         public_key.verify(
-            BASE64_STANDARD
+            BASE64_URL_SAFE
                 .decode(self.message.clone())
                 .unwrap()
                 .as_ref(),
-            BASE64_STANDARD.decode(self.sig.clone()).unwrap().as_ref(),
+            BASE64_URL_SAFE.decode(self.sig.clone()).unwrap().as_ref(),
         )
     }
 }
