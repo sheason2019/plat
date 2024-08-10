@@ -1,6 +1,7 @@
 use std::{
     fs::{self},
     path::Path,
+    sync::{OnceLock, RwLock},
 };
 
 use crate::core::isolate::Isolate;
@@ -12,18 +13,18 @@ pub struct Profile {
 }
 
 impl Profile {
-    fn default() -> Self {
+    const fn new() -> Self {
         Profile {
             isolates: Vec::new(),
         }
     }
 
     pub fn init() -> Self {
-        let mut profile = Profile::default();
+        let mut profile = Profile::new();
         // 从文件系统初始化 Profile 信息
         let read_dir = match fs::read_dir("./data") {
             Ok(value) => value,
-            Err(_) => return Profile::default(),
+            Err(_) => return Profile::new(),
         };
         for dir in read_dir {
             let dir = match dir {
@@ -57,15 +58,9 @@ impl Profile {
         profile
     }
 
-    pub fn get_instance() -> &'static Profile {
-        static mut INSTANCE: Option<Profile> = None;
-
-        unsafe {
-            if INSTANCE.is_none() {
-                INSTANCE = Some(Profile::init());
-            }
-            &INSTANCE.as_ref().unwrap()
-        }
+    pub fn get_instance() -> &'static RwLock<Profile> {
+        static INSTANCE: OnceLock<RwLock<Profile>> = OnceLock::new();
+        INSTANCE.get_or_init(|| RwLock::new(Profile::init()))
     }
 
     // 将 Profile 持久化保存到本地
@@ -102,10 +97,13 @@ impl Profile {
         }
     }
 
-    pub fn generate_isolate(&mut self) -> Result<(), String> {
+    pub fn generate_isolate(&mut self) -> Result<String, String> {
         let isolate = Isolate::generate()?;
+        let public_key = String::from(isolate.public_key.clone());
+
         self.isolates.push(isolate);
-        Ok(())
+        self.save();
+        Ok(public_key)
     }
 }
 
@@ -113,7 +111,6 @@ impl Profile {
 fn test_save() {
     let mut p = Profile::init();
     p.generate_isolate().expect("generate isolate failed");
-    p.save();
 }
 
 #[test]
