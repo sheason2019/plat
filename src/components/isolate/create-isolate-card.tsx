@@ -1,11 +1,11 @@
-import { Button, Card, CardBody } from "@nextui-org/react";
+import { Card, CardBody } from "@nextui-org/react";
 import { Link } from "@tanstack/react-router";
 
 export default function CreateIsolateCard() {
   return (
     <Card as={Link} to="/new">
-      <CardBody className="p-2">
-        <div className="flex gap-3 items-center">
+      <CardBody className="px-2 py-0">
+        <div className="flex gap-3 items-center h-12">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width={24}
@@ -18,7 +18,6 @@ export default function CreateIsolateCard() {
             <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z" />
           </svg>
           <p className="text-default-500">生成 / 导入账号</p>
-          <Button isIconOnly variant="light" disabled />
         </div>
       </CardBody>
     </Card>

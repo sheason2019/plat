@@ -2,6 +2,7 @@ import { createLazyFileRoute } from "@tanstack/react-router";
 import { Button, Select, SelectItem } from "@nextui-org/react";
 import Header from "../components/header";
 import { invoke } from "@tauri-apps/api/core";
+import useProfile from "../hooks/core/use-profile";
 
 export const Route = createLazyFileRoute("/new/generate")({
   component: Import,
@@ -9,8 +10,11 @@ export const Route = createLazyFileRoute("/new/generate")({
 
 function Import() {
   const navigate = Route.useNavigate();
+  const { mutate } = useProfile();
+
   const handleGenerate = async () => {
     await invoke("create_isolate", { template: "default" });
+    mutate();
     navigate({
       to: "/",
     });

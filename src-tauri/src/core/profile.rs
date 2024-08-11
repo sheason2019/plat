@@ -105,6 +105,20 @@ impl Profile {
         self.save();
         Ok(public_key)
     }
+
+    pub fn delete_isolate(&mut self, public_key: String) {
+        // 在内存中删除 isolate
+        let position = self
+            .isolates
+            .iter()
+            .position(|item| item.public_key == public_key)
+            .expect("cannot find position");
+        self.isolates.remove(position);
+
+        // 在文件系统中删除 isolate
+        let p = Path::new("./data").join(public_key);
+        fs::remove_dir_all(p).expect("remove isolate dir failed");
+    }
 }
 
 #[test]
