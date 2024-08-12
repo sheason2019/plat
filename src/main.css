@@ -11,5 +11,5 @@ body,
 #root,
 #next-provider {
   height: 100%;
-  @apply flex flex-col;
+  @apply flex flex-col overflow-hidden;
 }
