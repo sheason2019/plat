@@ -25,3 +25,4 @@ ring = { version = "0.17.8" }
 base64 = { version = "0.22.1" }
 wasmtime = "23.0.1"
 wasmtime-wasi = "23.0.1"
+glob = "0.3.1"

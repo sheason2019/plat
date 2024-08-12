@@ -2,6 +2,7 @@ use std::{
     fs::{self},
     path::Path,
     sync::{OnceLock, RwLock},
+    time::Instant,
 };
 
 use crate::core::isolate::Isolate;
@@ -10,26 +11,16 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct Profile {
     isolates: Vec<Isolate>,
-    #[serde(skip)]
-    runtime: ProfileRuntime,
-}
-
-#[derive(Default)]
-pub struct ProfileRuntime {
-    plugins: Vec<Profile>,
 }
 
 impl Profile {
     const fn new() -> Self {
         Profile {
             isolates: Vec::new(),
-            runtime: ProfileRuntime {
-                plugins: Vec::new(),
-            },
         }
     }
 
-    pub fn init() -> Self {
+    pub async fn init() -> Self {
         let mut profile = Profile::new();
         // 从文件系统初始化 Profile 信息
         let read_dir = match fs::read_dir("./data") {
@@ -54,7 +45,7 @@ impl Profile {
             if !isolate_file.exists() {
                 continue;
             }
-            let isolate: Isolate = match fs::read(isolate_file) {
+            let mut isolate: Isolate = match fs::read(isolate_file) {
                 Ok(value) => match serde_json::from_slice(value.as_ref()) {
                     Ok(value) => value,
                     Err(_) => continue,
@@ -62,15 +53,21 @@ impl Profile {
                 Err(_) => continue,
             };
 
+            isolate.init_plugin(dir.path().join("plugins")).await;
+
             profile.isolates.push(isolate)
         }
 
         profile
     }
 
-    pub fn get_instance() -> &'static RwLock<Profile> {
+    pub async fn get_instance() -> &'static RwLock<Profile> {
         static INSTANCE: OnceLock<RwLock<Profile>> = OnceLock::new();
-        INSTANCE.get_or_init(|| RwLock::new(Profile::init()))
+        if INSTANCE.get().is_none() {
+            let _ = INSTANCE.set(RwLock::new(Profile::init().await));
+        }
+
+        INSTANCE.get().expect("get profile instance failed")
     }
 
     // 将 Profile 持久化保存到本地
@@ -131,16 +128,16 @@ impl Profile {
     }
 }
 
-#[test]
-fn test_save() {
-    let mut p = Profile::init();
+#[tokio::test]
+async fn test_save() {
+    let mut p = Profile::init().await;
     p.generate_isolate().expect("generate isolate failed");
 }
 
-#[test]
-fn test_get_instance() {
-    let instance_a = Profile::get_instance();
-    let instance_b = Profile::get_instance();
+#[tokio::test]
+async fn test_get_instance() {
+    let instance_a = Profile::get_instance().await;
+    let instance_b = Profile::get_instance().await;
 
     if !std::ptr::eq(instance_a, instance_b) {
         panic!("instance not equal");

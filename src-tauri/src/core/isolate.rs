@@ -1,15 +1,24 @@
+use std::path::PathBuf;
+
+use crate::core::plugin::Plugin;
 use crate::core::signature_box::SignatureBox;
 use base64::prelude::*;
+use glob::glob;
 use ring::{
     rand,
     signature::{self, KeyPair},
 };
 use serde::{Deserialize, Serialize};
 
+use super::plugin::PluginRuntime;
+
 #[derive(Serialize, Deserialize)]
 pub struct Isolate {
     pub public_key: String,
     private_key: String,
+
+    #[serde(skip)]
+    plugins: Vec<Plugin>,
 }
 
 impl Isolate {
@@ -32,6 +41,7 @@ impl Isolate {
         Ok(Isolate {
             public_key,
             private_key,
+            plugins: Vec::new(),
         })
     }
 
@@ -47,6 +57,34 @@ impl Isolate {
             message: BASE64_URL_SAFE.encode(message),
             public_key: self.public_key.clone(),
             sig: BASE64_URL_SAFE.encode(sig),
+        }
+    }
+
+    pub async fn init_plugin(&mut self, plugins_dir: PathBuf) {
+        // 扫描 plugin_dir 目录下的 plugin.json 文件
+        for entry in glob(plugins_dir.join("**/plugin.json").to_str().unwrap())
+            .expect("failed to read glob pattern")
+        {
+            let entry = match entry {
+                Ok(value) => value,
+                _ => continue,
+            };
+
+            let plugin_dir = entry.join("..");
+            let plugin = match Plugin::load_by_path(plugin_dir) {
+                Ok(value) => value,
+                _ => continue,
+            };
+
+            let rt_plugin = plugin.clone();
+            tokio::spawn(async move {
+                let rt = PluginRuntime::from_plugin(rt_plugin)
+                    .await
+                    .expect("create plugin runtime failed");
+                rt.start().await.expect("start plugin failed");
+            });
+
+            self.plugins.push(plugin);
         }
     }
 }

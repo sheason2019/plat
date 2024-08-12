@@ -3,23 +3,23 @@ use core::profile::Profile;
 pub mod core;
 
 #[tauri::command]
-fn get_profile() -> String {
-    let profile = Profile::get_instance();
+async fn get_profile() -> String {
+    let profile = Profile::get_instance().await;
     serde_json::to_string(profile).unwrap()
 }
 
 #[tauri::command]
-fn create_isolate(template: String) -> String {
+async fn create_isolate(template: String) -> String {
     println!("create isolate with template {}", template);
-    let profile = Profile::get_instance();
+    let profile = Profile::get_instance().await;
     let mut profile = profile.write().unwrap();
 
     profile.generate_isolate().expect("generate isolate failed")
 }
 
 #[tauri::command]
-fn delete_isolate(public_key: String) {
-    let profile = Profile::get_instance();
+async fn delete_isolate(public_key: String) {
+    let profile = Profile::get_instance().await;
     let mut profile = profile.write().unwrap();
 
     profile.delete_isolate(public_key);
