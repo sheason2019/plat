@@ -10,12 +10,22 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct Profile {
     isolates: Vec<Isolate>,
+    #[serde(skip)]
+    runtime: ProfileRuntime,
+}
+
+#[derive(Default)]
+pub struct ProfileRuntime {
+    plugins: Vec<Profile>,
 }
 
 impl Profile {
     const fn new() -> Self {
         Profile {
             isolates: Vec::new(),
+            runtime: ProfileRuntime {
+                plugins: Vec::new(),
+            },
         }
     }
 
