@@ -11,8 +11,6 @@ export default function InnerStage() {
     }
   }, [stage]);
 
-  console.log('url', url);
-
   if (!url) return null;
 
   return <iframe className="w-full h-full overflow-hidden ml-2" src={url} />;

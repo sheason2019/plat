@@ -1,13 +1,16 @@
-import { Button, Card, CardBody, useDisclosure } from "@nextui-org/react";
-import { Link } from "@tanstack/react-router";
+import { Card, CardBody } from "@nextui-org/react";
 import { AnimatePresence, motion } from "framer-motion";
 import useIsolate from "../../hooks/core/use-isolate";
-import EntryButton from "./entry-button";
+import EntryButton from "./buttons/entry-button";
 import { Fragment } from "react/jsx-runtime";
+import useIsolateDrawer from "./hooks/use-isolate-drawer";
+import DrawerToggler from "./buttons/drawer-toggler";
+import SettingButton from "./buttons/setting-button";
+import AccountToggler from "./buttons/account-toggler";
 
 export default function IsolateDrawer() {
   const isolate = useIsolate();
-  const { isOpen, onOpenChange, onClose } = useDisclosure();
+  const { isOpen, onClose } = useIsolateDrawer();
 
   return (
     <>
@@ -37,20 +40,10 @@ export default function IsolateDrawer() {
       >
         <Card className="bg-blue-50 rounded-l-none h-full mr-4">
           <CardBody className="py-2 px-0">
-            <div className="flex items-stretch flex-1">
-              <div className="flex-1 px-2">
-                <Button
-                  isIconOnly
-                  className="w-16 h-16"
-                  variant="light"
-                  as={Link}
-                  to="/"
-                >
-                  选择账号
-                </Button>
-              </div>
-              <div className="flex flex-col h-full items-center w-16 mx-2 shrink-0">
-                <div className="flex-1 flex flex-col items-center">
+            <div className="flex flex-col flex-1">
+              <div className="flex items-stretch flex-1">
+                <div className="flex-1 px-2"></div>
+                <div className="w-16 flex flex-col mr-2">
                   {isolate?.plugins.map((plugin) => (
                     <Fragment key={plugin.name}>
                       {plugin.entries.map((entry) => (
@@ -63,32 +56,11 @@ export default function IsolateDrawer() {
                     </Fragment>
                   ))}
                 </div>
-                <div className="mb-1">
-                  <Button
-                    isIconOnly
-                    size="lg"
-                    onClick={onOpenChange}
-                    color="primary"
-                    className="delay-100"
-                    as={motion.button}
-                    animate={{
-                      rotate: isOpen ? 180 : 0,
-                    }}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width={20}
-                      height={20}
-                      fill="currentColor"
-                      viewBox="0 0 16 16"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M4.146 3.646a.5.5 0 0 0 0 .708L7.793 8l-3.647 3.646a.5.5 0 0 0 .708.708l4-4a.5.5 0 0 0 0-.708l-4-4a.5.5 0 0 0-.708 0zM11.5 1a.5.5 0 0 1 .5.5v13a.5.5 0 0 1-1 0v-13a.5.5 0 0 1 .5-.5z"
-                      />
-                    </svg>
-                  </Button>
-                </div>
+              </div>
+              <div className="shrink-0 mb-1 px-2 flex items-stretch">
+                <SettingButton />
+                <AccountToggler />
+                <DrawerToggler />
               </div>
             </div>
           </CardBody>
