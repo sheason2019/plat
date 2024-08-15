@@ -20,6 +20,8 @@ tauri-plugin-shell = "2.0.0-rc"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 axum = { version = "0.7.5" }
+tower = { version = "0.4", features = ["util"] }
+tower-http = { version = "0.5.0", features = ["fs", "trace"] }
 tokio = { version = "1.0", features = ["full"] }
 ring = { version = "0.17.8" }
 base64 = { version = "0.22.1" }

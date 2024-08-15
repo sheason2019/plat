@@ -2,6 +2,5 @@ package plat:plugin;
 
 /// An example world for the component to target.
 world plat {
-    export start: func() -> string;
-    export reducer: func(ty: string, payload: string) -> string;
+    export action: func(ty: string, payload: string) -> string;
 }

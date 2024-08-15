@@ -1,8 +1,7 @@
 use std::{
     fs::{self},
     path::Path,
-    sync::{OnceLock, RwLock},
-    time::Instant,
+    sync::{Arc, Mutex, OnceLock, RwLock},
 };
 
 use crate::core::isolate::Isolate;
@@ -10,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct Profile {
-    isolates: Vec<Isolate>,
+    isolates: Vec<Arc<Mutex<Isolate>>>,
 }
 
 impl Profile {
@@ -33,10 +32,10 @@ impl Profile {
                 Err(_) => continue,
             };
 
-            let filename = match dir.file_name().into_string() {
-                Ok(value) => value,
-                Err(_) => continue,
-            };
+            let filename = dir
+                .file_name()
+                .into_string()
+                .expect("dir name into string failed");
             if filename.starts_with(".") {
                 continue;
             }
@@ -45,18 +44,17 @@ impl Profile {
             if !isolate_file.exists() {
                 continue;
             }
-            let mut isolate: Isolate = match fs::read(isolate_file) {
-                Ok(value) => match serde_json::from_slice(value.as_ref()) {
-                    Ok(value) => value,
-                    Err(_) => continue,
-                },
-                Err(_) => continue,
-            };
 
-            isolate.init_plugin(dir.path().join("plugins")).await;
+            let isolate: Isolate =
+                serde_json::from_slice(fs::read(isolate_file).unwrap().as_ref()).unwrap();
 
-            profile.isolates.push(isolate)
+            let isolate = Arc::new(Mutex::new(isolate));
+            Isolate::init_plugin(Arc::clone(&isolate), dir.path().join("plugins")).await;
+
+            profile.isolates.push(Arc::clone(&isolate));
         }
+
+        profile.save();
 
         profile
     }
@@ -78,6 +76,7 @@ impl Profile {
         }
 
         for isolate in &self.isolates {
+            let isolate = isolate.lock().unwrap();
             let isolate_path = data_path.join(isolate.public_key.clone());
             if !isolate_path.exists() {
                 fs::create_dir(isolate_path.clone()).expect(
@@ -89,10 +88,13 @@ impl Profile {
                 );
             }
 
+            let mut isolate = isolate.clone();
+            isolate.plugins = Vec::new();
+
             let isolate_json_path = isolate_path.join("isolate.json");
             fs::write(
                 isolate_json_path.clone(),
-                serde_json::to_string(isolate).unwrap(),
+                serde_json::to_string(&isolate.clone()).unwrap(),
             )
             .expect(
                 format!(
@@ -108,7 +110,7 @@ impl Profile {
         let isolate = Isolate::generate()?;
         let public_key = String::from(isolate.public_key.clone());
 
-        self.isolates.push(isolate);
+        self.isolates.push(Arc::new(Mutex::new(isolate)));
         self.save();
         Ok(public_key)
     }
@@ -118,7 +120,7 @@ impl Profile {
         let position = self
             .isolates
             .iter()
-            .position(|item| item.public_key == public_key)
+            .position(|item| item.lock().unwrap().public_key == public_key)
             .expect("cannot find position");
         self.isolates.remove(position);
 

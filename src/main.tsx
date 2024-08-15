@@ -8,6 +8,7 @@ import { NextUIProvider } from "@nextui-org/react";
 import { routeTree } from "./routeTree.gen";
 
 import "./main.css";
+import { RecoilRoot } from "recoil";
 
 // Create a new router instance
 const router = createRouter({ routeTree });
@@ -25,9 +26,11 @@ if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <StrictMode>
-      <NextUIProvider id="next-provider">
-        <RouterProvider router={router} />
-      </NextUIProvider>
+      <RecoilRoot>
+        <NextUIProvider id="next-provider">
+          <RouterProvider router={router} />
+        </NextUIProvider>
+      </RecoilRoot>
     </StrictMode>
   );
 }

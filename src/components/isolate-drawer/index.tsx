@@ -1,8 +1,12 @@
 import { Button, Card, CardBody, useDisclosure } from "@nextui-org/react";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
+import useIsolate from "../../hooks/core/use-isolate";
+import EntryButton from "./entry-button";
+import { Fragment } from "react/jsx-runtime";
 
 export default function IsolateDrawer() {
+  const isolate = useIsolate();
   const { isOpen, onOpenChange, onClose } = useDisclosure();
 
   return (
@@ -22,6 +26,7 @@ export default function IsolateDrawer() {
       </AnimatePresence>
       <motion.div
         className="absolute left-0 top-0 bottom-0 max-w-sm w-full"
+        initial={{ translateX: "calc(0px - 100%)" }}
         animate={{
           translateX: isOpen ? "0" : "calc(96px - 100%)",
         }}
@@ -46,9 +51,17 @@ export default function IsolateDrawer() {
               </div>
               <div className="flex flex-col h-full items-center w-16 mx-2 shrink-0">
                 <div className="flex-1 flex flex-col items-center">
-                  <Button isIconOnly className="w-16 h-16" variant="light">
-                    App1
-                  </Button>
+                  {isolate?.plugins.map((plugin) => (
+                    <Fragment key={plugin.name}>
+                      {plugin.entries.map((entry) => (
+                        <EntryButton
+                          key={entry.name}
+                          plugin={plugin}
+                          entry={entry}
+                        />
+                      ))}
+                    </Fragment>
+                  ))}
                 </div>
                 <div className="mb-1">
                   <Button
@@ -70,7 +83,7 @@ export default function IsolateDrawer() {
                       viewBox="0 0 16 16"
                     >
                       <path
-                        fill-rule="evenodd"
+                        fillRule="evenodd"
                         d="M4.146 3.646a.5.5 0 0 0 0 .708L7.793 8l-3.647 3.646a.5.5 0 0 0 .708.708l4-4a.5.5 0 0 0 0-.708l-4-4a.5.5 0 0 0-.708 0zM11.5 1a.5.5 0 0 1 .5.5v13a.5.5 0 0 1-1 0v-13a.5.5 0 0 1 .5-.5z"
                       />
                     </svg>

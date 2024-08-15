@@ -1,4 +1,7 @@
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use crate::core::plugin::Plugin;
 use crate::core::signature_box::SignatureBox;
@@ -10,15 +13,12 @@ use ring::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::plugin::PluginRuntime;
-
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Isolate {
     pub public_key: String,
-    private_key: String,
+    pub private_key: String,
 
-    #[serde(skip)]
-    plugins: Vec<Plugin>,
+    pub plugins: Vec<Plugin>,
 }
 
 impl Isolate {
@@ -60,31 +60,41 @@ impl Isolate {
         }
     }
 
-    pub async fn init_plugin(&mut self, plugins_dir: PathBuf) {
+    pub async fn init_plugin(this: Arc<Mutex<Self>>, plugins_dir: PathBuf) {
+        let mut recvs: Vec<tokio::sync::mpsc::UnboundedReceiver<()>> = Vec::new();
+
         // 扫描 plugin_dir 目录下的 plugin.json 文件
         for entry in glob(plugins_dir.join("**/plugin.json").to_str().unwrap())
             .expect("failed to read glob pattern")
         {
-            let entry = match entry {
-                Ok(value) => value,
-                _ => continue,
-            };
-
+            let entry = entry.expect("failed to get entry path");
             let plugin_dir = entry.join("..");
-            let plugin = match Plugin::load_by_path(plugin_dir) {
-                Ok(value) => value,
-                _ => continue,
-            };
 
-            let rt_plugin = plugin.clone();
-            tokio::spawn(async move {
-                let rt = PluginRuntime::from_plugin(rt_plugin)
-                    .await
-                    .expect("create plugin runtime failed");
-                rt.start().await.expect("start plugin failed");
+            let plugin = Plugin::load_by_path(plugin_dir).expect(
+                format!("failed to load plugin by path {:?}", entry.clone().to_str()).as_ref(),
+            );
+
+            let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+            recvs.push(rx);
+
+            tokio::spawn({
+                let isolate = Arc::clone(&this);
+                async move {
+                    let mut plugin = plugin.clone();
+                    let (listener, server) =
+                        plugin.create_server().await.expect("start plugin failed");
+                    plugin.addr = listener.local_addr().unwrap().to_string();
+                    isolate.lock().unwrap().plugins.push(plugin);
+
+                    tx.send(()).unwrap();
+
+                    axum::serve(listener, server).await.unwrap();
+                }
             });
+        }
 
-            self.plugins.push(plugin);
+        for mut recv in recvs {
+            recv.recv().await.unwrap();
         }
     }
 }
