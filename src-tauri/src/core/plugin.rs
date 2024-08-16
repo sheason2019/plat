@@ -1,6 +1,5 @@
 use crate::core::plat::{Plat, StoreState};
-
-use axum::extract::State;
+use axum::extract::{Path, State};
 use axum::routing::post;
 use axum::Router;
 use std::{error::Error, fs, path::PathBuf};
@@ -56,15 +55,22 @@ impl Plugin {
         let component = Component::from_file(&engine, self.directory.join(self.plugin.clone()))?;
 
         async fn invoke_handler(
-            State((engine, linker, component)): State<(Engine, Linker<StoreState>, Component)>,
+            State((engine, linker, component, plugin_dir)): State<(
+                Engine,
+                Linker<StoreState>,
+                Component,
+                PathBuf,
+            )>,
+            Path(ty): Path<String>,
+            body: String,
         ) -> String {
-            let mut store = Store::new(&engine, StoreState::new());
+            let mut store = Store::new(&engine, StoreState::new(plugin_dir));
             let world = Plat::instantiate_async(&mut store, &component, &linker)
                 .await
                 .unwrap();
 
             world
-                .call_action(&mut store, "hello", "world")
+                .call_action(&mut store, &ty, &body)
                 .await
                 .expect("call reducer failed")
         }
@@ -72,19 +78,31 @@ impl Plugin {
         let plugin_server = Router::new()
             .nest_service("/", assets_dir.clone())
             .fallback_service(assets_dir)
-            .route("/invoke", post(invoke_handler))
+            .route("/invoke/:ty", post(invoke_handler))
             .route(
-                "/plugin/$scope/$name",
+                "/plugin/:scope/:name",
                 post(|| async { "Extern plugin handler" }),
             )
-            .with_state((engine, linker, component));
+            .with_state((engine, linker, component, self.directory.clone()));
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
             .await
             .expect("bind listener failed");
 
-        self.addr = listener.local_addr().unwrap().to_string();
-
         Ok((listener, plugin_server))
     }
+}
+
+#[tokio::test]
+async fn test_plugin() {
+    let plugin_dir = std::path::Path::new(
+        r"data\I5aV7bEC6dqmor1xVC31xadQm9Y2otocgEeVmvXbQtg=\plugins\plat\hello",
+    );
+    let mut plugin = Plugin::load_by_path(plugin_dir.to_path_buf()).unwrap();
+    let (listener, plugin_server) = plugin.create_server().await.unwrap();
+    println!(
+        "server started at addr {}",
+        listener.local_addr().unwrap().to_string()
+    );
+    axum::serve(listener, plugin_server).await.unwrap();
 }

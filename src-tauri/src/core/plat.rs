@@ -1,5 +1,9 @@
+use std::path::PathBuf;
+
 use wasmtime::component::bindgen;
 use wasmtime::component::ResourceTable;
+use wasmtime_wasi::DirPerms;
+use wasmtime_wasi::FilePerms;
 use wasmtime_wasi::WasiCtxBuilder;
 use wasmtime_wasi::{WasiCtx, WasiView};
 
@@ -11,9 +15,17 @@ pub struct StoreState {
 }
 
 impl StoreState {
-    pub fn new() -> Self {
+    pub fn new(plugin_dir: PathBuf) -> Self {
         let mut builder = WasiCtxBuilder::new();
         builder.inherit_stdio();
+        builder
+            .preopened_dir(
+                plugin_dir.join("static"),
+                "/static",
+                DirPerms::all(),
+                FilePerms::all(),
+            )
+            .expect("preopen dir failed");
 
         StoreState {
             ctx: builder.build(),
