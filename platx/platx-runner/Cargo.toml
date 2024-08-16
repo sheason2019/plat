@@ -1,0 +1,15 @@
+[package]
+name = "platx-runner"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.86"
+serde = { version = "1.0.208", features = ["derive"] }
+serde_json = "1.0.125"
+axum = { version = "0.7.5" }
+tower = { version = "0.4", features = ["util"] }
+tower-http = { version = "0.5.0", features = ["fs", "trace"] }
+tokio = { version = "1.0", features = ["full"] }
+wasmtime = "23.0.1"
+wasmtime-wasi = "23.0.1"

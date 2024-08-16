@@ -19,23 +19,14 @@ impl Profile {
         }
     }
 
-    pub async fn init() -> Self {
+    pub async fn init() -> anyhow::Result<Self> {
         let mut profile = Profile::new();
         // 从文件系统初始化 Profile 信息
-        let read_dir = match fs::read_dir("./data") {
-            Ok(value) => value,
-            Err(_) => return Profile::new(),
-        };
+        let read_dir = fs::read_dir("./data")?;
         for dir in read_dir {
-            let dir = match dir {
-                Ok(value) => value,
-                Err(_) => continue,
-            };
+            let dir = dir?;
 
-            let filename = dir
-                .file_name()
-                .into_string()
-                .expect("dir name into string failed");
+            let filename = dir.file_name().into_string().unwrap();
             if filename.starts_with(".") {
                 continue;
             }
@@ -46,23 +37,25 @@ impl Profile {
             }
 
             let isolate: Isolate =
-                serde_json::from_slice(fs::read(isolate_file).unwrap().as_ref()).unwrap();
+                serde_json::from_slice(fs::read(isolate_file).unwrap().as_ref())?;
 
             let isolate = Arc::new(Mutex::new(isolate));
-            Isolate::init_plugin(Arc::clone(&isolate), dir.path().join("plugins")).await;
+            Isolate::init_plugin(Arc::clone(&isolate), dir.path().join("plugins")).await?;
 
             profile.isolates.push(Arc::clone(&isolate));
         }
 
         profile.save();
 
-        profile
+        Ok(profile)
     }
 
     pub async fn get_instance() -> &'static RwLock<Profile> {
         static INSTANCE: OnceLock<RwLock<Profile>> = OnceLock::new();
         if INSTANCE.get().is_none() {
-            let _ = INSTANCE.set(RwLock::new(Profile::init().await));
+            let _ = INSTANCE.set(RwLock::new(
+                Profile::init().await.expect("get instance failed"),
+            ));
         }
 
         INSTANCE.get().expect("get profile instance failed")
@@ -106,7 +99,7 @@ impl Profile {
         }
     }
 
-    pub fn generate_isolate(&mut self) -> Result<String, String> {
+    pub fn generate_isolate(&mut self) -> anyhow::Result<String> {
         let isolate = Isolate::generate()?;
         let public_key = String::from(isolate.public_key.clone());
 
@@ -132,7 +125,7 @@ impl Profile {
 
 #[tokio::test]
 async fn test_save() {
-    let mut p = Profile::init().await;
+    let mut p = Profile::init().await.unwrap();
     p.generate_isolate().expect("generate isolate failed");
 }
 

@@ -7,7 +7,7 @@ use wasmtime_wasi::FilePerms;
 use wasmtime_wasi::WasiCtxBuilder;
 use wasmtime_wasi::{WasiCtx, WasiView};
 
-bindgen!({world: "plat", path: "src/core/wit/world.wit", async: true});
+bindgen!({world: "plat", path: "src/wit/world.wit", async: true});
 
 pub struct StoreState {
     ctx: WasiCtx,

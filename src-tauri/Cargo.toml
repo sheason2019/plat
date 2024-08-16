@@ -19,12 +19,11 @@ tauri = { version = "2.0.0-rc", features = [] }
 tauri-plugin-shell = "2.0.0-rc"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-axum = { version = "0.7.5" }
-tower = { version = "0.4", features = ["util"] }
-tower-http = { version = "0.5.0", features = ["fs", "trace"] }
 tokio = { version = "1.0", features = ["full"] }
 ring = { version = "0.17.8" }
 base64 = { version = "0.22.1" }
 wasmtime = "23.0.1"
 wasmtime-wasi = "23.0.1"
 glob = "0.3.1"
+platx-runner = { path = "../platx/platx-runner" }
+anyhow = "1.0.86"

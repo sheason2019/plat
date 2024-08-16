@@ -45,10 +45,10 @@ export default function IsolateDrawer() {
                 <div className="flex-1 px-2"></div>
                 <div className="w-16 flex flex-col mr-2">
                   {isolate?.plugins.map((plugin) => (
-                    <Fragment key={plugin.name}>
-                      {plugin.entries.map((entry) => (
+                    <Fragment key={plugin.config.name}>
+                      {plugin.config.entries.map((entry) => (
                         <EntryButton
-                          key={entry.name}
+                          key={entry.label}
                           plugin={plugin}
                           entry={entry}
                         />

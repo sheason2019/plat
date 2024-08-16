@@ -3,10 +3,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::core::plugin::Plugin;
 use crate::core::signature_box::SignatureBox;
 use base64::prelude::*;
 use glob::glob;
+use platx_runner::platx::PlatX;
 use ring::{
     rand,
     signature::{self, KeyPair},
@@ -18,21 +18,15 @@ pub struct Isolate {
     pub public_key: String,
     pub private_key: String,
 
-    pub plugins: Vec<Plugin>,
+    pub plugins: Vec<PlatX>,
 }
 
 impl Isolate {
-    pub fn generate() -> Result<Self, String> {
+    pub fn generate() -> anyhow::Result<Self> {
         let rng = rand::SystemRandom::new();
-        let pkcs8_bytes = match signature::Ed25519KeyPair::generate_pkcs8(&rng) {
-            Ok(value) => value,
-            Err(e) => return Err(e.to_string()),
-        };
+        let pkcs8_bytes = signature::Ed25519KeyPair::generate_pkcs8(&rng).unwrap();
 
-        let keypair = match signature::Ed25519KeyPair::from_pkcs8(pkcs8_bytes.as_ref()) {
-            Ok(value) => value,
-            Err(e) => return Err(e.to_string()),
-        };
+        let keypair = signature::Ed25519KeyPair::from_pkcs8(pkcs8_bytes.as_ref()).unwrap();
         let public_key_bytes = keypair.public_key().as_ref();
 
         let public_key = BASE64_URL_SAFE.encode(public_key_bytes);
@@ -60,19 +54,15 @@ impl Isolate {
         }
     }
 
-    pub async fn init_plugin(this: Arc<Mutex<Self>>, plugins_dir: PathBuf) {
+    pub async fn init_plugin(this: Arc<Mutex<Self>>, plugins_dir: PathBuf) -> anyhow::Result<()> {
         let mut recvs: Vec<tokio::sync::mpsc::UnboundedReceiver<()>> = Vec::new();
 
         // 扫描 plugin_dir 目录下的 plugin.json 文件
-        for entry in glob(plugins_dir.join("**/plugin.json").to_str().unwrap())
-            .expect("failed to read glob pattern")
-        {
-            let entry = entry.expect("failed to get entry path");
+        for entry in glob(plugins_dir.join("**/plugin.json").to_str().unwrap())? {
+            let entry = entry?;
             let plugin_dir = entry.join("..");
 
-            let plugin = Plugin::load_by_path(plugin_dir).expect(
-                format!("failed to load plugin by path {:?}", entry.clone().to_str()).as_ref(),
-            );
+            let plugin = PlatX::from_path(plugin_dir).await?;
 
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
             recvs.push(rx);
@@ -81,14 +71,18 @@ impl Isolate {
                 let isolate = Arc::clone(&this);
                 async move {
                     let mut plugin = plugin.clone();
-                    let (listener, server) =
-                        plugin.create_server().await.expect("start plugin failed");
-                    plugin.addr = listener.local_addr().unwrap().to_string();
-                    isolate.lock().unwrap().plugins.push(plugin);
+                    let listener = plugin
+                        .bind_tcp_listener()
+                        .await
+                        .expect("bind tcp listener failed");
+
+                    {
+                        isolate.lock().unwrap().plugins.push(plugin.clone());
+                    }
 
                     tx.send(()).unwrap();
 
-                    axum::serve(listener, server).await.unwrap();
+                    plugin.start_server(listener).await.unwrap();
                 }
             });
         }
@@ -96,5 +90,7 @@ impl Isolate {
         for mut recv in recvs {
             recv.recv().await.unwrap();
         }
+
+        Ok(())
     }
 }

@@ -1,0 +1,2 @@
+[workspace]
+members = ["src-tauri", "platx/platx-runner", "platx/platx-cli"]

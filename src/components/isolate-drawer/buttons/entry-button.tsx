@@ -1,10 +1,10 @@
-import { Entry, Plugin } from "../../../models/core";
+import { Entry, PlatX } from "../../../models/core";
 import useStage from "../../stage/hooks/use-stage";
 import useIsolateDrawer from "../hooks/use-isolate-drawer";
 import DrawerButton from "./drawer-button";
 
 interface Props {
-  plugin: Plugin;
+  plugin: PlatX;
   entry: Entry;
 }
 
@@ -19,7 +19,7 @@ export default function EntryButton({ entry, plugin }: Props) {
         onClose();
       }}
     >
-      {entry.name}
+      {entry.label}
     </DrawerButton>
   );
 }

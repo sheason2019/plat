@@ -5,18 +5,24 @@ export interface Profile {
 export interface Isolate {
   public_key: string;
   private_key: string;
-  plugins: Plugin[];
+  plugins: PlatX[];
 }
 
-export interface Plugin {
-  name: string;
-  plugin: string;
+export interface PlatX {
   addr: string;
+  directory: string;
+  config: PlatXConfig;
+}
+
+export interface PlatXConfig {
+  name: string;
+  main: string;
   entries: Entry[];
 }
 
 export interface Entry {
-  name: string;
+  label: string;
+  icon: string;
   href: string;
   target: string;
 }

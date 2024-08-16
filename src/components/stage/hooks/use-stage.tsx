@@ -1,8 +1,8 @@
-import { Entry, Plugin } from "../../../models/core";
+import { Entry, PlatX } from "../../../models/core";
 import { atom, useRecoilState } from "recoil";
 
 interface StageData {
-  plugin: Plugin;
+  plugin: PlatX;
   entry: Entry;
 }
 
