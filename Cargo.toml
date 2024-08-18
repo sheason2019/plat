@@ -1,5 +1,5 @@
 [workspace]
-members = ["src-tauri", "platx/platx-runner", "platx/platx-cli"]
+members = ["src-tauri", "platx/platx-runner", "platx/platx-cli", "platx/platx-bundler"]
 [workspace.dependencies]
 anyhow = "1.0.86"
 serde = { version = "1.0.208", features = ["derive"] }

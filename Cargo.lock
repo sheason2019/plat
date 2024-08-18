@@ -3012,13 +3012,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "platx-cli"
+name = "platx-bundler"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap",
  "flate2",
  "tar",
+]
+
+[[package]]
+name = "platx-cli"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "platx-bundler",
 ]
 
 [[package]]
