@@ -9,7 +9,7 @@ export interface Isolate {
 }
 
 export interface PlatX {
-  addr: string;
+  port: number;
   directory: string;
   config: PlatXConfig;
 }

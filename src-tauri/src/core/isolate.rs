@@ -1,7 +1,4 @@
-use std::{
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
+use std::path::PathBuf;
 
 use crate::core::signature_box::SignatureBox;
 use base64::prelude::*;
@@ -11,9 +8,7 @@ use ring::{
     rand,
     signature::{self, KeyPair},
 };
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone)]
 pub struct Isolate {
     pub public_key: String,
     pub private_key: String,
@@ -54,41 +49,19 @@ impl Isolate {
         }
     }
 
-    pub async fn init_plugin(this: Arc<Mutex<Self>>, plugins_dir: PathBuf) -> anyhow::Result<()> {
-        let mut recvs: Vec<tokio::sync::mpsc::UnboundedReceiver<()>> = Vec::new();
-
+    pub async fn init_plugin(&mut self, plugins_dir: PathBuf) -> anyhow::Result<()> {
         // 扫描 plugin_dir 目录下的 plugin.json 文件
         for entry in glob(plugins_dir.join("**/plugin.json").to_str().unwrap())? {
             let entry = entry?;
             let plugin_dir = entry.join("..");
 
-            let plugin = PlatX::from_path(plugin_dir).await?;
+            let mut plugin = PlatX::from_path(plugin_dir)?;
 
-            let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-            recvs.push(rx);
+            let tcp_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
 
-            tokio::spawn({
-                let isolate = Arc::clone(&this);
-                async move {
-                    let mut plugin = plugin.clone();
-                    let listener = plugin
-                        .bind_tcp_listener()
-                        .await
-                        .expect("bind tcp listener failed");
+            plugin.start_server(tcp_listener).await?;
 
-                    {
-                        isolate.lock().unwrap().plugins.push(plugin.clone());
-                    }
-
-                    tx.send(()).unwrap();
-
-                    plugin.start_server(listener).await.unwrap();
-                }
-            });
-        }
-
-        for mut recv in recvs {
-            recv.recv().await.unwrap();
+            self.plugins.push(plugin);
         }
 
         Ok(())

@@ -1,15 +1,15 @@
 use std::{
     fs::{self},
     path::Path,
-    sync::{Arc, Mutex, OnceLock, RwLock},
+    sync::{Mutex, OnceLock},
 };
 
 use crate::core::isolate::Isolate;
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+use super::dto::ProfileDTO;
+
 pub struct Profile {
-    isolates: Vec<Arc<Mutex<Isolate>>>,
+    pub isolates: Vec<Isolate>,
 }
 
 impl Profile {
@@ -21,39 +21,28 @@ impl Profile {
 
     pub async fn init() -> anyhow::Result<Self> {
         let mut profile = Profile::new();
-        // 从文件系统初始化 Profile 信息
-        let read_dir = fs::read_dir("./data")?;
-        for dir in read_dir {
-            let dir = dir?;
+        let profile_dto = ProfileDTO::from_fs()?;
+        let data_root = std::path::Path::new("data");
 
-            let filename = dir.file_name().into_string().unwrap();
-            if filename.starts_with(".") {
-                continue;
-            }
+        for isolate_dto in &profile_dto.isolates {
+            let isolate_root = data_root.join(isolate_dto.public_key.clone());
+            let mut isolate = Isolate {
+                public_key: isolate_dto.public_key.clone(),
+                private_key: isolate_dto.private_key.clone(),
+                plugins: Vec::new(),
+            };
+            isolate.init_plugin(isolate_root.join("plugins")).await?;
 
-            let isolate_file = dir.path().join("isolate.json");
-            if !isolate_file.exists() {
-                continue;
-            }
-
-            let isolate: Isolate =
-                serde_json::from_slice(fs::read(isolate_file).unwrap().as_ref())?;
-
-            let isolate = Arc::new(Mutex::new(isolate));
-            Isolate::init_plugin(Arc::clone(&isolate), dir.path().join("plugins")).await?;
-
-            profile.isolates.push(Arc::clone(&isolate));
+            profile.isolates.push(isolate);
         }
-
-        profile.save();
 
         Ok(profile)
     }
 
-    pub async fn get_instance() -> &'static RwLock<Profile> {
-        static INSTANCE: OnceLock<RwLock<Profile>> = OnceLock::new();
+    pub async fn get_instance() -> &'static Mutex<Profile> {
+        static INSTANCE: OnceLock<Mutex<Profile>> = OnceLock::new();
         if INSTANCE.get().is_none() {
-            let _ = INSTANCE.set(RwLock::new(
+            let _ = INSTANCE.set(Mutex::new(
                 Profile::init().await.expect("get instance failed"),
             ));
         }
@@ -62,64 +51,40 @@ impl Profile {
     }
 
     // 将 Profile 持久化保存到本地
-    pub fn save(&self) {
-        let data_path = Path::new("./data");
-        if !data_path.exists() {
-            fs::create_dir(data_path).expect(format!("create data dir error").as_ref());
-        }
+    pub fn save(&self) -> anyhow::Result<()> {
+        let profile_dto = ProfileDTO::from_profile(self);
+        profile_dto.save()?;
 
-        for isolate in &self.isolates {
-            let isolate = isolate.lock().unwrap();
-            let isolate_path = data_path.join(isolate.public_key.clone());
-            if !isolate_path.exists() {
-                fs::create_dir(isolate_path.clone()).expect(
-                    format!(
-                        "create isolate dir {} failed",
-                        isolate_path.as_os_str().to_str().unwrap()
-                    )
-                    .as_ref(),
-                );
-            }
+        Ok(())
+    }
 
-            let mut isolate = isolate.clone();
-            isolate.plugins = Vec::new();
-
-            let isolate_json_path = isolate_path.join("isolate.json");
-            fs::write(
-                isolate_json_path.clone(),
-                serde_json::to_string(&isolate.clone()).unwrap(),
-            )
-            .expect(
-                format!(
-                    "write {} failed",
-                    isolate_json_path.as_os_str().to_str().unwrap()
-                )
-                .as_ref(),
-            );
-        }
+    pub fn as_dto(&self) -> ProfileDTO {
+        ProfileDTO::from_profile(self)
     }
 
     pub fn generate_isolate(&mut self) -> anyhow::Result<String> {
         let isolate = Isolate::generate()?;
         let public_key = String::from(isolate.public_key.clone());
 
-        self.isolates.push(Arc::new(Mutex::new(isolate)));
-        self.save();
+        self.isolates.push(isolate);
+        self.save()?;
         Ok(public_key)
     }
 
-    pub fn delete_isolate(&mut self, public_key: String) {
+    pub fn delete_isolate(&mut self, public_key: String) -> anyhow::Result<()> {
         // 在内存中删除 isolate
         let position = self
             .isolates
             .iter()
-            .position(|item| item.lock().unwrap().public_key == public_key)
+            .position(|item| item.public_key == public_key)
             .expect("cannot find position");
         self.isolates.remove(position);
 
         // 在文件系统中删除 isolate
         let p = Path::new("./data").join(public_key);
-        fs::remove_dir_all(p).expect("remove isolate dir failed");
+        fs::remove_dir_all(p)?;
+
+        Ok(())
     }
 }
 

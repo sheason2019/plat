@@ -6,26 +6,24 @@ use anyhow::Ok;
 use axum::extract::{Path, State};
 use axum::routing::post;
 use axum::Router;
-use serde::{Deserialize, Serialize};
 use tower_http::services::{ServeDir, ServeFile};
 use wasmtime::component::{Component, Linker};
 use wasmtime::{Config, Engine, Store};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PlatX {
-    addr: String,
+    pub port: u16,
+    pub config: PlatXConfig,
     directory: PathBuf,
-    config: PlatXConfig,
 }
 
 impl PlatX {
-    pub async fn from_path(dir_path: PathBuf) -> anyhow::Result<Self> {
+    pub fn from_path(dir_path: PathBuf) -> anyhow::Result<Self> {
         let config = PlatXConfig::from_path(dir_path.clone())?;
 
         Ok(PlatX {
             config,
+            port: 0,
             directory: dir_path,
-            addr: String::new(),
         })
     }
 
@@ -46,14 +44,10 @@ impl PlatX {
         Ok((engine, linker, component))
     }
 
-    pub async fn bind_tcp_listener(&mut self) -> anyhow::Result<tokio::net::TcpListener> {
-        let tcp_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
-        self.addr = tcp_listener.local_addr()?.to_string();
-
-        Ok(tcp_listener)
-    }
-
-    pub async fn start_server(&self, listener: tokio::net::TcpListener) -> anyhow::Result<()> {
+    pub async fn start_server(
+        &mut self,
+        listener: tokio::net::TcpListener,
+    ) -> anyhow::Result<tokio::task::JoinHandle<()>> {
         let (engine, linker, component) = self.create_wasm().await?;
 
         let assets_dir = ServeDir::new(self.directory.join("assets"))
@@ -69,9 +63,15 @@ impl PlatX {
             )
             .with_state((engine, linker, component, self.directory.clone()));
 
-        axum::serve(listener, plugin_server).await?;
+        self.port = listener.local_addr()?.port();
 
-        Ok(())
+        let handler = tokio::spawn(async {
+            axum::serve(listener, plugin_server)
+                .await
+                .expect("start server failed");
+        });
+
+        Ok(handler)
     }
 }
 

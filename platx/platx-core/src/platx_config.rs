@@ -4,7 +4,6 @@ use anyhow::Ok;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(default = "PlatXConfig::default")]
 pub struct PlatXConfig {
     pub name: String,
     pub main: String,
@@ -20,13 +19,6 @@ pub struct PlatXEntry {
 }
 
 impl PlatXConfig {
-    fn default() -> Self {
-        PlatXConfig {
-            name: String::new(),
-            main: "main.wasm".to_string(),
-            entries: Vec::new(),
-        }
-    }
     pub fn from_path(dir_path: PathBuf) -> anyhow::Result<Self> {
         let plugin_file = dir_path.join("plugin.json");
         let plugin_bytes = fs::read(plugin_file)?;

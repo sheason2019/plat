@@ -5,14 +5,15 @@ pub mod core;
 #[tauri::command]
 async fn get_profile() -> String {
     let profile = Profile::get_instance().await;
-    serde_json::to_string(profile).unwrap()
+    let profile_dto = profile.lock().unwrap().as_dto();
+
+    serde_json::to_string(&profile_dto).expect("profile to dto json failed")
 }
 
 #[tauri::command]
 async fn create_isolate(template: String) -> String {
-    println!("create isolate with template {}", template);
     let profile = Profile::get_instance().await;
-    let mut profile = profile.write().unwrap();
+    let mut profile = profile.lock().unwrap();
 
     profile.generate_isolate().expect("generate isolate failed")
 }
@@ -20,9 +21,11 @@ async fn create_isolate(template: String) -> String {
 #[tauri::command]
 async fn delete_isolate(public_key: String) {
     let profile = Profile::get_instance().await;
-    let mut profile = profile.write().unwrap();
+    let mut profile = profile.lock().unwrap();
 
-    profile.delete_isolate(public_key);
+    profile
+        .delete_isolate(public_key)
+        .expect("delete isolate failed");
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
