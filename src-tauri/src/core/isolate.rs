@@ -6,7 +6,7 @@ use std::{
 use crate::core::signature_box::SignatureBox;
 use base64::prelude::*;
 use glob::glob;
-use platx_runner::platx::PlatX;
+use platx_core::platx::PlatX;
 use ring::{
     rand,
     signature::{self, KeyPair},

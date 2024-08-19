@@ -1,9 +1,0 @@
-[package]
-name = "platx-bundler"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-anyhow = { workspace = true }
-tar = { workspace = true }
-flate2 = { workspace = true }
