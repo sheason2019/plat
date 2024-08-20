@@ -25,3 +25,4 @@ platx-core = { path = "../platx/platx-core" }
 anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+tauri-plugin-dialog = "2.0.0-rc.2"

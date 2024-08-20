@@ -24,7 +24,7 @@ impl Untarer {
         Ok(())
     }
 
-    pub fn untar_with_plugin_root(&self, plugin_root: PathBuf) -> anyhow::Result<()> {
+    pub fn untar_with_plugin_root(&self, plugin_root: PathBuf) -> anyhow::Result<PathBuf> {
         // 将插件内容解压至缓存路径
         let cache_path = plugin_root
             .join(".cache")
@@ -54,8 +54,8 @@ impl Untarer {
             std::fs::remove_dir_all(plugin_dir.clone())?;
         }
 
-        std::fs::rename(cache_path, plugin_dir)?;
+        std::fs::rename(cache_path, plugin_dir.clone())?;
 
-        Ok(())
+        Ok(plugin_dir)
     }
 }

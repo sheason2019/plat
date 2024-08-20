@@ -32,6 +32,28 @@ async fn delete_isolate(state: PlatState<'_>, public_key: String) -> Result<(), 
 }
 
 #[tauri::command]
+async fn install_plugin(
+    state: PlatState<'_>,
+    public_key: String,
+    plugin_file_path: String,
+) -> Result<(), ()> {
+    let mut profile = state.lock().await;
+
+    let isolate = profile
+        .isolates
+        .iter_mut()
+        .find(|i| i.public_key == public_key)
+        .unwrap();
+
+    isolate
+        .install_plugin(std::path::Path::new(plugin_file_path.as_str()).to_path_buf())
+        .await
+        .expect("install plugin failed");
+
+    Ok(())
+}
+
+#[tauri::command]
 async fn delete_plugin(
     state: PlatState<'_>,
     public_key: String,
@@ -67,12 +89,14 @@ fn setup<'a>(app: &'a mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(setup)
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             get_profile,
             create_isolate,
             delete_isolate,
+            install_plugin,
             delete_plugin,
         ])
         .run(tauri::generate_context!())

@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::core::signature_box::SignatureBox;
 use base64::prelude::*;
@@ -81,6 +81,21 @@ impl Isolate {
 
         // 从文件系统删除 plugin 所有数据
         plugin.delete_in_fs()?;
+
+        Ok(())
+    }
+
+    pub async fn install_plugin(&mut self, plugin_file_path: PathBuf) -> anyhow::Result<()> {
+        let plugin_root = Path::new("data")
+            .join(self.public_key.clone())
+            .join("plugins");
+
+        let untarer = platx_core::bundler::untarer::Untarer::new(plugin_file_path);
+        let plugin_path = untarer.untar_with_plugin_root(plugin_root)?;
+        let mut plugin = PlatX::from_path(plugin_path)?;
+        let tcp_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        plugin.start_server(tcp_listener).await?;
+        self.plugins.push(plugin);
 
         Ok(())
     }
