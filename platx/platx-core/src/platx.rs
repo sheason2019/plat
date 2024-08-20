@@ -15,7 +15,7 @@ pub struct PlatX {
     pub port: u16,
     pub config: PlatXConfig,
     directory: PathBuf,
-    stop_server_sender: Option<Sender<()>>,
+    stop_server_sender: Option<Sender<bool>>,
 }
 
 impl PlatX {
@@ -68,17 +68,23 @@ impl PlatX {
 
         self.port = listener.local_addr()?.port();
 
-        let handler = tokio::task::spawn({
-            let (tx, mut rx) = mpsc::channel::<()>(1);
-            self.stop_server_sender = Some(tx);
-            async move {
-                axum::serve(listener, plugin_server)
-                    .with_graceful_shutdown(async move {
-                        rx.recv().await;
-                    })
-                    .await
-                    .expect("start server failed");
-            }
+        let (tx, mut rx) = mpsc::channel::<bool>(1);
+        self.stop_server_sender = Some(tx.clone());
+
+        let handler = tokio::task::spawn(async move {
+            let tx = tx.clone();
+            axum::serve(listener, plugin_server)
+                .with_graceful_shutdown(async move {
+                    loop {
+                        match rx.recv().await {
+                            Some(_) => break,
+                            None => (),
+                        };
+                    }
+                })
+                .await
+                .expect("start server failed");
+            tx.send(true).await.expect("send message failed");
         });
 
         Ok(handler)
@@ -89,7 +95,7 @@ impl PlatX {
             .as_ref()
             .unwrap()
             .clone()
-            .send(())
+            .send(true)
             .await
             .unwrap();
     }

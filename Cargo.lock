@@ -3286,8 +3286,10 @@ dependencies = [
 name = "platx-cli"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "clap",
  "platx-core",
+ "tokio",
 ]
 
 [[package]]

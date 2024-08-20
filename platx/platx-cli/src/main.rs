@@ -4,6 +4,9 @@ pub mod cli;
 
 use crate::cli::Cli;
 
-fn main() {
-    Cli::parse().work();
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    Cli::parse().work().await?;
+
+    Ok(())
 }
