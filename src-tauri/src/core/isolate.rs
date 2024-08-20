@@ -66,4 +66,22 @@ impl Isolate {
 
         Ok(())
     }
+
+    pub async fn remove_plugin(&mut self, name: String) -> anyhow::Result<()> {
+        // 在内存中移除 plugin
+        let index = &self
+            .plugins
+            .iter()
+            .position(|i| i.config.name == name)
+            .unwrap();
+        let plugin = self.plugins.remove(*index);
+
+        // 停止 plugin 服务
+        plugin.stop().await;
+
+        // 从文件系统删除 plugin 所有数据
+        plugin.delete_in_fs()?;
+
+        Ok(())
+    }
 }

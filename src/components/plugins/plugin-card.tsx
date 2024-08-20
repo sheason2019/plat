@@ -1,5 +1,6 @@
-import { Button, Card, CardBody, CardFooter } from "@nextui-org/react";
+import { Card, CardBody, CardFooter } from "@nextui-org/react";
 import { PlatX } from "../../models/core";
+import DeletePluginButton from "./delete-plugin-button";
 
 interface Props {
   plugin: PlatX;
@@ -14,7 +15,7 @@ export default function PluginCard({ plugin }: Props) {
         <p>插件定义入口：{plugin.config.entries.length}</p>
       </CardBody>
       <CardFooter className="pt-0 justify-end">
-        <Button color="danger">卸载</Button>
+        <DeletePluginButton plugin={plugin} />
       </CardFooter>
     </Card>
   );

@@ -6,6 +6,7 @@ use anyhow::Ok;
 use axum::extract::{Path, State};
 use axum::routing::post;
 use axum::Router;
+use tokio::sync::mpsc::{self, Sender};
 use tower_http::services::{ServeDir, ServeFile};
 use wasmtime::component::{Component, Linker};
 use wasmtime::{Config, Engine, Store};
@@ -14,6 +15,7 @@ pub struct PlatX {
     pub port: u16,
     pub config: PlatXConfig,
     directory: PathBuf,
+    stop_server_sender: Option<Sender<()>>,
 }
 
 impl PlatX {
@@ -24,6 +26,7 @@ impl PlatX {
             config,
             port: 0,
             directory: dir_path,
+            stop_server_sender: None,
         })
     }
 
@@ -65,13 +68,35 @@ impl PlatX {
 
         self.port = listener.local_addr()?.port();
 
-        let handler = tokio::spawn(async {
-            axum::serve(listener, plugin_server)
-                .await
-                .expect("start server failed");
+        let handler = tokio::task::spawn({
+            let (tx, mut rx) = mpsc::channel::<()>(1);
+            self.stop_server_sender = Some(tx);
+            async move {
+                axum::serve(listener, plugin_server)
+                    .with_graceful_shutdown(async move {
+                        rx.recv().await;
+                    })
+                    .await
+                    .expect("start server failed");
+            }
         });
 
         Ok(handler)
+    }
+
+    pub async fn stop(&self) {
+        self.stop_server_sender
+            .as_ref()
+            .unwrap()
+            .clone()
+            .send(())
+            .await
+            .unwrap();
+    }
+
+    pub fn delete_in_fs(&self) -> anyhow::Result<()> {
+        std::fs::remove_dir_all(self.directory.clone())?;
+        Ok(())
     }
 }
 

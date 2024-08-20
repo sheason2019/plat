@@ -1,7 +1,6 @@
 use std::{
     fs::{self},
     path::Path,
-    sync::{Mutex, OnceLock},
 };
 
 use crate::core::isolate::Isolate;
@@ -39,17 +38,6 @@ impl Profile {
         Ok(profile)
     }
 
-    pub async fn get_instance() -> &'static Mutex<Profile> {
-        static INSTANCE: OnceLock<Mutex<Profile>> = OnceLock::new();
-        if INSTANCE.get().is_none() {
-            let _ = INSTANCE.set(Mutex::new(
-                Profile::init().await.expect("get instance failed"),
-            ));
-        }
-
-        INSTANCE.get().expect("get profile instance failed")
-    }
-
     // 将 Profile 持久化保存到本地
     pub fn save(&self) -> anyhow::Result<()> {
         let profile_dto = ProfileDTO::from_profile(self);
@@ -85,21 +73,5 @@ impl Profile {
         fs::remove_dir_all(p)?;
 
         Ok(())
-    }
-}
-
-#[tokio::test]
-async fn test_save() {
-    let mut p = Profile::init().await.unwrap();
-    p.generate_isolate().expect("generate isolate failed");
-}
-
-#[tokio::test]
-async fn test_get_instance() {
-    let instance_a = Profile::get_instance().await;
-    let instance_b = Profile::get_instance().await;
-
-    if !std::ptr::eq(instance_a, instance_b) {
-        panic!("instance not equal");
     }
 }

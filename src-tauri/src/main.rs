@@ -3,7 +3,6 @@
 
 pub mod core;
 
-#[tokio::main]
-async fn main() {
+fn main() {
     plat_lib::run();
 }
