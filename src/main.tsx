@@ -2,13 +2,11 @@ import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import "@fontsource-variable/noto-sans-sc";
-import { NextUIProvider } from "@nextui-org/react";
 
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";
 
 import "./main.css";
-import { RecoilRoot } from "recoil";
 
 // Create a new router instance
 const router = createRouter({ routeTree });
@@ -26,11 +24,7 @@ if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <StrictMode>
-      <RecoilRoot>
-        <NextUIProvider id="next-provider">
-          <RouterProvider router={router} />
-        </NextUIProvider>
-      </RecoilRoot>
+      <RouterProvider router={router} />
     </StrictMode>
   );
 }

@@ -5,6 +5,4 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.16", features = ["derive"] }
-anyhow = { workspace = true }
-tar = { workspace = true }
-flate2 = { workspace = true }
+platx-core = { path = "../platx-core" }

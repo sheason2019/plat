@@ -4,8 +4,8 @@ import useStage from "./hooks/use-stage";
 export default function InnerStage() {
   const [stage] = useStage();
   const url = useMemo(() => {
-    if (stage?.plugin.addr) {
-      return `http://${stage.plugin.addr}${stage.entry.href}`;
+    if (stage?.plugin.port) {
+      return `http://127.0.0.1:${stage.plugin.port}${stage.entry.href}`;
     } else {
       return null;
     }

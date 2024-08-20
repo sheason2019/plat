@@ -1,19 +1,14 @@
-use std::{
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
+use std::path::{Path, PathBuf};
 
 use crate::core::signature_box::SignatureBox;
 use base64::prelude::*;
 use glob::glob;
-use platx_runner::platx::PlatX;
+use platx_core::platx::PlatX;
 use ring::{
     rand,
     signature::{self, KeyPair},
 };
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone)]
 pub struct Isolate {
     pub public_key: String,
     pub private_key: String,
@@ -54,42 +49,53 @@ impl Isolate {
         }
     }
 
-    pub async fn init_plugin(this: Arc<Mutex<Self>>, plugins_dir: PathBuf) -> anyhow::Result<()> {
-        let mut recvs: Vec<tokio::sync::mpsc::UnboundedReceiver<()>> = Vec::new();
-
+    pub async fn init_plugin(&mut self, plugins_dir: PathBuf) -> anyhow::Result<()> {
         // 扫描 plugin_dir 目录下的 plugin.json 文件
         for entry in glob(plugins_dir.join("**/plugin.json").to_str().unwrap())? {
             let entry = entry?;
             let plugin_dir = entry.join("..");
 
-            let plugin = PlatX::from_path(plugin_dir).await?;
+            let mut plugin = PlatX::from_path(plugin_dir)?;
 
-            let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-            recvs.push(rx);
+            let tcp_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
 
-            tokio::spawn({
-                let isolate = Arc::clone(&this);
-                async move {
-                    let mut plugin = plugin.clone();
-                    let listener = plugin
-                        .bind_tcp_listener()
-                        .await
-                        .expect("bind tcp listener failed");
+            plugin.start_server(tcp_listener).await?;
 
-                    {
-                        isolate.lock().unwrap().plugins.push(plugin.clone());
-                    }
-
-                    tx.send(()).unwrap();
-
-                    plugin.start_server(listener).await.unwrap();
-                }
-            });
+            self.plugins.push(plugin);
         }
 
-        for mut recv in recvs {
-            recv.recv().await.unwrap();
-        }
+        Ok(())
+    }
+
+    pub async fn remove_plugin(&mut self, name: String) -> anyhow::Result<()> {
+        // 在内存中移除 plugin
+        let index = &self
+            .plugins
+            .iter()
+            .position(|i| i.config.name == name)
+            .unwrap();
+        let plugin = self.plugins.remove(*index);
+
+        // 停止 plugin 服务
+        plugin.stop().await;
+
+        // 从文件系统删除 plugin 所有数据
+        plugin.delete_in_fs()?;
+
+        Ok(())
+    }
+
+    pub async fn install_plugin(&mut self, plugin_file_path: PathBuf) -> anyhow::Result<()> {
+        let plugin_root = Path::new("data")
+            .join(self.public_key.clone())
+            .join("plugins");
+
+        let untarer = platx_core::bundler::untarer::Untarer::new(plugin_file_path);
+        let plugin_path = untarer.untar_with_plugin_root(plugin_root)?;
+        let mut plugin = PlatX::from_path(plugin_path)?;
+        let tcp_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        plugin.start_server(tcp_listener).await?;
+        self.plugins.push(plugin);
 
         Ok(())
     }

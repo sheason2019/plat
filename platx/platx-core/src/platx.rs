@@ -6,26 +6,27 @@ use anyhow::Ok;
 use axum::extract::{Path, State};
 use axum::routing::post;
 use axum::Router;
-use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc::{self, Sender};
 use tower_http::services::{ServeDir, ServeFile};
 use wasmtime::component::{Component, Linker};
 use wasmtime::{Config, Engine, Store};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PlatX {
-    addr: String,
+    pub port: u16,
+    pub config: PlatXConfig,
     directory: PathBuf,
-    config: PlatXConfig,
+    stop_server_sender: Option<Sender<()>>,
 }
 
 impl PlatX {
-    pub async fn from_path(dir_path: PathBuf) -> anyhow::Result<Self> {
+    pub fn from_path(dir_path: PathBuf) -> anyhow::Result<Self> {
         let config = PlatXConfig::from_path(dir_path.clone())?;
 
         Ok(PlatX {
             config,
+            port: 0,
             directory: dir_path,
-            addr: String::new(),
+            stop_server_sender: None,
         })
     }
 
@@ -46,14 +47,10 @@ impl PlatX {
         Ok((engine, linker, component))
     }
 
-    pub async fn bind_tcp_listener(&mut self) -> anyhow::Result<tokio::net::TcpListener> {
-        let tcp_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
-        self.addr = tcp_listener.local_addr()?.to_string();
-
-        Ok(tcp_listener)
-    }
-
-    pub async fn start_server(&self, listener: tokio::net::TcpListener) -> anyhow::Result<()> {
+    pub async fn start_server(
+        &mut self,
+        listener: tokio::net::TcpListener,
+    ) -> anyhow::Result<tokio::task::JoinHandle<()>> {
         let (engine, linker, component) = self.create_wasm().await?;
 
         let assets_dir = ServeDir::new(self.directory.join("assets"))
@@ -69,8 +66,36 @@ impl PlatX {
             )
             .with_state((engine, linker, component, self.directory.clone()));
 
-        axum::serve(listener, plugin_server).await?;
+        self.port = listener.local_addr()?.port();
 
+        let handler = tokio::task::spawn({
+            let (tx, mut rx) = mpsc::channel::<()>(1);
+            self.stop_server_sender = Some(tx);
+            async move {
+                axum::serve(listener, plugin_server)
+                    .with_graceful_shutdown(async move {
+                        rx.recv().await;
+                    })
+                    .await
+                    .expect("start server failed");
+            }
+        });
+
+        Ok(handler)
+    }
+
+    pub async fn stop(&self) {
+        self.stop_server_sender
+            .as_ref()
+            .unwrap()
+            .clone()
+            .send(())
+            .await
+            .unwrap();
+    }
+
+    pub fn delete_in_fs(&self) -> anyhow::Result<()> {
+        std::fs::remove_dir_all(self.directory.clone())?;
         Ok(())
     }
 }

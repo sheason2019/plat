@@ -1,5 +1,5 @@
 [package]
-name = "platx-runner"
+name = "platx-core"
 version = "0.1.0"
 edition = "2021"
 
@@ -13,3 +13,6 @@ tower-http = { version = "0.5.0", features = ["fs", "trace"] }
 tokio = { version = "1.0", features = ["full"] }
 wasmtime = "23.0.1"
 wasmtime-wasi = "23.0.1"
+urlencoding = "2.1.3"
+tar = { workspace = true }
+flate2 = { workspace = true }

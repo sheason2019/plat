@@ -1,7 +1,6 @@
 import { ReactNode } from "react";
 import clsx from "clsx";
-import { Button } from "@nextui-org/react";
-import { Link } from "@tanstack/react-router";
+import { Button, Link } from "@nextui-org/react";
 
 interface Props {
   title: ReactNode;
@@ -22,7 +21,7 @@ export default function Header({ title, backHref }: Props) {
           variant="light"
           className="mr-2"
           as={Link}
-          to={backHref}
+          href={backHref}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -38,7 +37,7 @@ export default function Header({ title, backHref }: Props) {
           </svg>
         </Button>
       )}
-      <h1 className="text-2xl whitespace-nowrap">{title}</h1>
+      <h1 className="text-2xl whitespace-nowrap select-none">{title}</h1>
     </div>
   );
 }

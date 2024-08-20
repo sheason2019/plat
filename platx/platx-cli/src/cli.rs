@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 
-use crate::{tarer::Tarer, untarer::Untarer};
+use platx_core::bundler::{tarer::Tarer, untarer::Untarer};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
