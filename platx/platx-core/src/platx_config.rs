@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PlatXConfig {
     pub name: String,
-    pub main: String,
+    pub wasm_root: String,
+    pub asset_root: String,
     pub entries: Vec<PlatXEntry>,
 }
 

@@ -40,9 +40,10 @@ impl PlatX {
 
         let mut linker: Linker<StoreState> = Linker::new(&engine);
         wasmtime_wasi::add_to_linker_async(&mut linker)?;
+        Plat::add_to_linker(&mut linker, |state| state)?;
 
         let component =
-            Component::from_file(&engine, self.directory.join(self.config.main.clone()))?;
+            Component::from_file(&engine, self.directory.join(self.config.wasm_root.clone()))?;
 
         Ok((engine, linker, component))
     }
@@ -53,7 +54,7 @@ impl PlatX {
     ) -> anyhow::Result<tokio::task::JoinHandle<()>> {
         let (engine, linker, component) = self.create_wasm().await?;
 
-        let assets_dir = ServeDir::new(self.directory.join("assets"))
+        let assets_dir = ServeDir::new(self.directory.join(self.config.asset_root.clone()))
             .not_found_service(ServeFile::new(self.directory.join("assets/index.html")));
 
         let plugin_server = Router::new()
@@ -117,12 +118,9 @@ async fn invoke_handler(
     body: String,
 ) -> String {
     let mut store = Store::new(&engine, StoreState::new(plugin_dir));
-    let world = Plat::instantiate_async(&mut store, &component, &linker)
-        .await
-        .unwrap();
+    let world = Plat::instantiate(&mut store, &component, &linker).unwrap();
 
     world
-        .call_action(&mut store, &ty, &body)
-        .await
+        .call_emit(&mut store, &ty, &body)
         .expect("call reducer failed")
 }

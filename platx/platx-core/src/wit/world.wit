@@ -1,5 +1,6 @@
 package plat:plugin;
 
 world plat {
-    export action: func(ty: string, payload: string) -> string;
+    import emit: func(ty: string, payload: string) -> string;
+    export emit: func(ty: string, payload: string) -> string;
 }

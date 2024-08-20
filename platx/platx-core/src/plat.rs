@@ -7,7 +7,7 @@ use wasmtime_wasi::FilePerms;
 use wasmtime_wasi::WasiCtxBuilder;
 use wasmtime_wasi::{WasiCtx, WasiView};
 
-bindgen!({world: "plat", path: "src/wit/world.wit", async: true});
+bindgen!({world: "plat", path: "src/wit/world.wit"});
 
 pub struct StoreState {
     ctx: WasiCtx,
@@ -40,5 +40,11 @@ impl WasiView for StoreState {
     }
     fn ctx(&mut self) -> &mut WasiCtx {
         &mut self.ctx
+    }
+}
+
+impl PlatImports for StoreState {
+    fn emit(&mut self, ty: String, payload: String) -> String {
+        todo!()
     }
 }
