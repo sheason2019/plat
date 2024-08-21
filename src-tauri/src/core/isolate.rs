@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::core::signature_box::SignatureBox;
+use anyhow::Context;
 use base64::prelude::*;
 use glob::glob;
 use platx_core::platx::PlatX;
@@ -55,11 +56,17 @@ impl Isolate {
             let entry = entry?;
             let plugin_dir = entry.join("..");
 
-            let mut plugin = PlatX::from_path(plugin_dir)?;
+            let mut plugin = PlatX::from_plugin_root(plugin_dir.clone()).context(format!(
+                "init plugin by path {} failed",
+                plugin_dir.to_str().unwrap()
+            ))?;
 
             let tcp_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
 
-            plugin.start_server(tcp_listener).await?;
+            plugin
+                .start_server(tcp_listener)
+                .await
+                .context("start server failed")?;
 
             self.plugins.push(plugin);
         }
@@ -92,7 +99,7 @@ impl Isolate {
 
         let untarer = platx_core::bundler::untarer::Untarer::new(plugin_file_path);
         let plugin_path = untarer.untar_with_plugin_root(plugin_root)?;
-        let mut plugin = PlatX::from_path(plugin_path)?;
+        let mut plugin = PlatX::from_plugin_root(plugin_path)?;
         let tcp_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
         plugin.start_server(tcp_listener).await?;
         self.plugins.push(plugin);

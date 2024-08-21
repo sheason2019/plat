@@ -37,7 +37,7 @@ impl Cli {
             Some(Commands::Serve { path }) => {
                 let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
                 println!("plugin server started at {}", listener.local_addr()?);
-                let handler = PlatX::from_path(path.clone())?
+                let handler = PlatX::from_plugin_root(path.clone())?
                     .start_server(listener)
                     .await?;
                 handler.await?;

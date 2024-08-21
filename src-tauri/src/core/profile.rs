@@ -3,6 +3,8 @@ use std::{
     path::Path,
 };
 
+use anyhow::Context;
+
 use crate::core::isolate::Isolate;
 
 use super::dto::ProfileDTO;
@@ -30,7 +32,13 @@ impl Profile {
                 private_key: isolate_dto.private_key.clone(),
                 plugins: Vec::new(),
             };
-            isolate.init_plugin(isolate_root.join("plugins")).await?;
+            isolate
+                .init_plugin(isolate_root.join("plugins"))
+                .await
+                .context(format!(
+                    "isolate {} init plugins failed",
+                    isolate_dto.public_key.clone()
+                ))?;
 
             profile.isolates.push(isolate);
         }

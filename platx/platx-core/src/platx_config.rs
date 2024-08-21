@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct PlatXConfig {
     pub name: String,
     pub wasm_root: String,
-    pub asset_root: String,
+    pub assets_root: String,
     pub entries: Vec<PlatXEntry>,
 }
 
