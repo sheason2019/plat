@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::Context;
+use platx_core::platx::daemon::PlatXDaemon;
 
 use crate::core::isolate::Isolate;
 
@@ -30,7 +31,7 @@ impl Profile {
             let mut isolate = Isolate {
                 public_key: isolate_dto.public_key.clone(),
                 private_key: isolate_dto.private_key.clone(),
-                plugins: Vec::new(),
+                daemon: PlatXDaemon::new(),
             };
             isolate
                 .init_plugin(isolate_root.join("plugins"))
@@ -58,8 +59,8 @@ impl Profile {
         ProfileDTO::from_profile(self)
     }
 
-    pub fn generate_isolate(&mut self) -> anyhow::Result<String> {
-        let isolate = Isolate::generate()?;
+    pub async fn generate_isolate(&mut self) -> anyhow::Result<String> {
+        let isolate = Isolate::generate().await?;
         let public_key = String::from(isolate.public_key.clone());
 
         self.isolates.push(isolate);

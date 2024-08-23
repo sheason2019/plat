@@ -18,7 +18,10 @@ async fn get_profile(state: PlatState<'_>) -> Result<String, ()> {
 #[tauri::command]
 async fn create_isolate(state: PlatState<'_>, template: String) -> Result<String, ()> {
     let mut profile = state.lock().await;
-    Ok(profile.generate_isolate().expect("generate isolate failed"))
+    Ok(profile
+        .generate_isolate()
+        .await
+        .expect("generate isolate failed"))
 }
 
 #[tauri::command]
@@ -68,7 +71,7 @@ async fn delete_plugin(
         .unwrap();
 
     isolate
-        .remove_plugin(plugin_name)
+        .uninstall_plugin(plugin_name)
         .await
         .expect("remove plugin failed");
 

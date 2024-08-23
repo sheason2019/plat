@@ -4,7 +4,7 @@ use anyhow::{anyhow, Context};
 use flate2::read::GzDecoder;
 use tar::Archive;
 
-use crate::platx_config::PlatXConfig;
+use crate::platx::daemon::PlatXConfig;
 
 pub struct Untarer {
     tar_file: std::path::PathBuf,

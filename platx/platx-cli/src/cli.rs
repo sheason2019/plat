@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 
 use platx_core::{
     bundler::{tarer::Tarer, untarer::Untarer},
-    platx::PlatX,
+    platx::{daemon::PlatXDaemon, PlatX},
 };
 
 #[derive(Parser)]
@@ -35,10 +35,20 @@ impl Cli {
                 Untarer::new(path.clone()).untar(output.clone()).unwrap()
             }
             Some(Commands::Serve { path }) => {
-                let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
-                println!("plugin server started at {}", listener.local_addr()?);
+                // 启动 Plugin Daemon
+                let mut daemon = PlatXDaemon::new();
+                daemon.start_server().await?;
+                println!("plugin daemon started on: {}", daemon.addr.to_string());
+
+                // 启动 Plugin
+                let plugin_server_tcp_listener =
+                    tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+                println!(
+                    "plugin server started on: {}",
+                    plugin_server_tcp_listener.local_addr()?
+                );
                 let handler = PlatX::from_plugin_root(path.clone())?
-                    .start_server(listener)
+                    .start_server(plugin_server_tcp_listener, daemon.addr.clone())
                     .await?;
                 handler.await?;
             }

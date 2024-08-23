@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use platx_core::platx_config::PlatXConfig;
 use serde::{Deserialize, Serialize};
 
 use super::profile::Profile;
@@ -14,14 +13,6 @@ pub struct ProfileDTO {
 pub struct IsolateDTO {
     pub public_key: String,
     pub private_key: String,
-
-    pub plugins: Vec<PluginDTO>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct PluginDTO {
-    pub port: u16,
-    pub config: PlatXConfig,
 }
 
 impl ProfileDTO {
@@ -55,20 +46,9 @@ impl ProfileDTO {
         let mut isolates: Vec<IsolateDTO> = Vec::new();
 
         for isolate in &profile.isolates {
-            let mut plugins: Vec<PluginDTO> = Vec::new();
-
-            for plugin in &isolate.plugins {
-                let plugin_dto = PluginDTO {
-                    port: plugin.port.clone(),
-                    config: plugin.config.clone(),
-                };
-                plugins.push(plugin_dto);
-            }
-
             let isolate_dto = IsolateDTO {
                 public_key: isolate.public_key.clone(),
                 private_key: isolate.private_key.clone(),
-                plugins,
             };
             isolates.push(isolate_dto);
         }
@@ -84,10 +64,8 @@ impl ProfileDTO {
                 std::fs::create_dir_all(isolate_root.clone())?;
             }
 
-            let mut isolate_json_obj = isolate.clone();
-            isolate_json_obj.plugins = Vec::new();
             let isolate_json_path = isolate_root.join("isolate.json");
-            let isolate_json_bytes = serde_json::to_string(&isolate_json_obj)?;
+            let isolate_json_bytes = serde_json::to_string(&self)?;
             std::fs::write(isolate_json_path, isolate_json_bytes)?;
         }
 

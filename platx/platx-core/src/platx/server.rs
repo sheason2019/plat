@@ -5,77 +5,31 @@ use std::{
 
 use anyhow::Context;
 use axum::{
-    extract::{Path, Request, State},
-    routing::{any, post},
+    extract::{Path, State},
+    routing::post,
     Router,
 };
 use tower_http::services::{ServeDir, ServeFile};
-use url::Url;
 use wasmtime::component::{Component, Linker};
 use wasmtime::{Config, Engine, Store};
 
-use crate::{
-    plat::{Plat, StoreState},
-    platx_config::PlatXConfig,
-};
+use super::PlatXConfig;
+use crate::plat::{Plat, StoreState};
 
 pub fn create_router(plugin_root: PathBuf, platx_config: PlatXConfig) -> anyhow::Result<Router> {
     let assets_root = platx_config.assets_root.clone();
-    let assets_router = match url::Url::parse(&assets_root) {
-        Ok(assets_proxy_root) => {
-            println!("proxy assets to url: {}", assets_proxy_root.to_string());
-            let handler = any(
-                |State(state): State<Arc<Mutex<ServerState>>>, req: Request| async {
-                    reverse_proxy_handler(state, req, assets_proxy_root).await
-                },
-            );
-            Router::new()
-                .route("/*asset_path", handler.clone())
-                .route("/", handler)
-        }
-        Err(_) => {
-            let assets_path = plugin_root.join(assets_root.clone());
-            println!("host assets from path {}", assets_path.to_str().unwrap());
-            let assets_dir = ServeDir::new(assets_path.clone())
-                .not_found_service(ServeFile::new(assets_path.join("index.html")));
-            Router::new()
-                .nest_service("/", assets_dir.clone())
-                .fallback_service(assets_dir)
-        }
-    };
+
+    let assets_path = plugin_root.join(assets_root.clone());
+    let assets_dir = ServeDir::new(assets_path.clone())
+        .not_found_service(ServeFile::new(assets_path.join("index.html")));
 
     let mut state = ServerState::new();
-
-    let wasm_root = platx_config.wasm_root.clone();
-    let wasm_router = match url::Url::parse(&wasm_root) {
-        Ok(wasm_proxy_root) => {
-            println!("proxy wasm service to url: {}", wasm_proxy_root.to_string());
-            Router::new().route(
-                "/invoke/:ty",
-                post(
-                    |State(state): State<Arc<Mutex<ServerState>>>, req: Request| async {
-                        reverse_proxy_handler(state, req, wasm_proxy_root).await
-                    },
-                ),
-            )
-        }
-        Err(_) => {
-            println!(
-                "host wasm service from path {}",
-                plugin_root
-                    .clone()
-                    .join(platx_config.wasm_root.clone())
-                    .to_str()
-                    .unwrap()
-            );
-            state.with_wasm_context(plugin_root, platx_config)?;
-            Router::new().route("/invoke/:ty", post(invoke_handler))
-        }
-    };
+    state.with_wasm_context(plugin_root, platx_config)?;
 
     let router = Router::new()
-        .merge(assets_router)
-        .merge(wasm_router)
+        .nest_service("/", assets_dir.clone())
+        .fallback_service(assets_dir)
+        .route("/invoke/:ty", post(invoke_handler))
         .route(
             "/plugin/:scope/:name",
             post(|| async { "Extern plugin handler" }),
@@ -97,36 +51,8 @@ async fn invoke_handler(
         .expect("call reducer failed")
 }
 
-async fn reverse_proxy_handler(
-    state: Arc<Mutex<ServerState>>,
-    req: Request,
-    proxy_root: Url,
-) -> axum::response::Response {
-    let target_url = proxy_root.join(req.uri().to_string().as_str()).unwrap();
-
-    println!("request redirect to {}", target_url);
-
-    let client = state.lock().unwrap().reqwest_client.clone();
-
-    let request_builder = client.request(req.method().clone(), target_url);
-    let reqwest_response = client
-        .execute(request_builder.build().unwrap())
-        .await
-        .expect("execute request failed");
-
-    let mut response_builder =
-        axum::response::Response::builder().status(reqwest_response.status());
-    *response_builder.headers_mut().unwrap() = reqwest_response.headers().clone();
-    response_builder
-        .body(axum::body::Body::from_stream(
-            reqwest_response.bytes_stream(),
-        ))
-        .unwrap()
-}
-
 struct ServerState {
     wasm_context: Option<WasmContext>,
-    reqwest_client: reqwest::Client,
 }
 
 struct WasmContext {
@@ -138,10 +64,7 @@ struct WasmContext {
 
 impl ServerState {
     fn new() -> Self {
-        ServerState {
-            wasm_context: None,
-            reqwest_client: reqwest::Client::new(),
-        }
+        ServerState { wasm_context: None }
     }
 
     fn with_wasm_context(

@@ -1,16 +1,18 @@
 use std::path::PathBuf;
 
-use crate::platx_config::PlatXConfig;
-use anyhow::{Context, Ok};
-use tokio::sync::mpsc::{self, Sender};
+use anyhow::Context;
+use daemon::{PlatXConfig, RegistedPlugin};
+use tokio::sync::mpsc::Sender;
 
+use crate::utils;
+
+pub mod daemon;
 pub mod server;
 
 pub struct PlatX {
-    pub port: u16,
-    pub config: PlatXConfig,
+    pub registed_plugin: RegistedPlugin,
     plugin_root: PathBuf,
-    stop_server_sender: Option<Sender<bool>>,
+    stop_server_sender: Option<Sender<()>>,
 }
 
 impl PlatX {
@@ -18,8 +20,10 @@ impl PlatX {
         let config = PlatXConfig::from_path(plugin_root.clone())?;
 
         Ok(PlatX {
-            config,
-            port: 0,
+            registed_plugin: RegistedPlugin {
+                addr: String::new(),
+                config,
+            },
             plugin_root,
             stop_server_sender: None,
         })
@@ -28,26 +32,36 @@ impl PlatX {
     pub async fn start_server(
         &mut self,
         listener: tokio::net::TcpListener,
+        deamon_address: String,
     ) -> anyhow::Result<tokio::task::JoinHandle<()>> {
-        let (tx, mut rx) = mpsc::channel::<bool>(1);
-        let router = server::create_router(self.plugin_root.clone(), self.config.clone())
-            .context("create router failed")?;
+        // 启动服务
+        let router = server::create_router(
+            self.plugin_root.clone(),
+            self.registed_plugin.config.clone(),
+        )
+        .context("create router failed")?;
+        self.registed_plugin.addr = listener.local_addr()?.to_string();
 
-        self.port = listener.local_addr()?.port();
+        let (handler, tx) = utils::start_server_with_graceful_shutdown_channel(listener, router);
         self.stop_server_sender = Some(tx.clone());
 
-        let handler = tokio::task::spawn(async move {
-            let tx = tx.clone();
-
-            axum::serve(listener, router)
-                .with_graceful_shutdown(async move {
-                    rx.recv().await;
-                })
-                .await
-                .expect("start axum server failed");
-
-            tx.send(true).await.expect("send message failed");
-        });
+        // 向 Daemon 服务器注册服务，若注册失败则停止服务
+        let url = url::Url::parse(&deamon_address)?.join("plugin")?;
+        let client = reqwest::Client::new();
+        match client
+            .post(url)
+            .json(&serde_json::to_string(&self.registed_plugin)?)
+            .send()
+            .await
+        {
+            Err(_) => {
+                println!("send regist request failed");
+                tx.send(()).await?;
+            }
+            Ok(response) => {
+                println!("send regist request success: {}", response.text().await?);
+            }
+        }
 
         Ok(handler)
     }
@@ -57,7 +71,7 @@ impl PlatX {
             .as_ref()
             .unwrap()
             .clone()
-            .send(true)
+            .send(())
             .await
             .unwrap();
     }
