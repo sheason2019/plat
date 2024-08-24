@@ -44,9 +44,9 @@ impl PlatXDaemon {
         let router = Router::new()
             .route("/plugin", post(regist_handler).get(get_plugins_handler))
             .with_state(self.plugin_map.clone());
-        let (handler, tx) =
+        let (handler, signal) =
             utils::start_server_with_graceful_shutdown_channel(tcp_listener, router);
-        self.stop_server_signal = Some(tx);
+        self.stop_server_signal = Some(signal);
 
         Ok(handler)
     }
@@ -57,7 +57,10 @@ impl PlatXDaemon {
         Ok(json_string)
     }
 
-    pub fn uninstall_plugin(&mut self, name: String) -> anyhow::Result<()> {
+    pub fn uninstall_plugin(&mut self, name: &str) -> anyhow::Result<()> {
+        let mut plugin_map = self.plugin_map.lock().unwrap();
+        plugin_map.remove(name);
+
         Ok(())
     }
 }

@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs::{self},
     ops::Deref,
     path::Path,
@@ -45,11 +46,9 @@ impl Profile {
                 public_key: isolate_json["public_key"].as_str().unwrap().to_string(),
                 private_key: isolate_json["private_key"].as_str().unwrap().to_string(),
                 daemon: PlatXDaemon::new(),
+                plugin_handler_map: HashMap::new(),
             };
-            println!(
-                "public_key: {}, private_key: {}",
-                &isolate.public_key, &isolate.private_key
-            );
+
             isolate.daemon.start_server().await?;
             isolate
                 .init_plugin(dir.path().join("plugins"))

@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use crate::core::signature_box::SignatureBox;
 use anyhow::Context;
@@ -15,6 +18,7 @@ pub struct Isolate {
     pub private_key: String,
 
     pub daemon: PlatXDaemon,
+    pub plugin_handler_map: HashMap<String, PlatX>,
 }
 
 impl Isolate {
@@ -35,6 +39,7 @@ impl Isolate {
             public_key,
             private_key,
             daemon,
+            plugin_handler_map: HashMap::new(),
         })
     }
 
@@ -70,29 +75,27 @@ impl Isolate {
                 .start_server(tcp_listener, self.daemon.addr.clone())
                 .await
                 .context("start server failed")?;
+            self.plugin_handler_map
+                .insert(plugin.registed_plugin.config.name.clone(), plugin);
         }
 
         Ok(())
     }
 
     pub async fn uninstall_plugin(&mut self, name: String) -> anyhow::Result<()> {
-        // // 在内存中移除 plugin
-        // let index = &self
-        //     .plugins
-        //     .iter()
-        //     .position(|i| i.registed_plugin.config.name == name)
-        //     .unwrap();
-        // let plugin = self.plugins.remove(*index);
+        // 从 Daemon 服务中移除 Plugin 的注册
+        self.daemon.uninstall_plugin(&name)?;
 
-        // // 停止 plugin 服务
-        // plugin.stop().await;
+        // 尝试从本机服务中寻找句柄，若存在句柄则停止服务并从文件系统删除 Plugin
+        match self.plugin_handler_map.remove(&name) {
+            None => return Ok(()),
+            Some(plugin) => {
+                plugin.stop().await;
+                plugin.delete_in_fs()?;
+            }
+        };
 
-        // // 从文件系统删除 plugin 所有数据
-        // plugin.delete_in_fs()?;
-
-        // Ok(())
-
-        self.daemon.uninstall_plugin(name)
+        Ok(())
     }
 
     pub async fn install_plugin(&mut self, plugin_file_path: PathBuf) -> anyhow::Result<()> {

@@ -10,7 +10,7 @@ impl Tarer {
     }
 
     pub fn tar(&self) -> anyhow::Result<()> {
-        let output_path = self.dir.join("../output.platx");
+        let output_path = self.dir.join("./output.platx");
         let tar_gz = std::fs::File::create(output_path.clone())?;
         let enc = GzEncoder::new(tar_gz, Compression::default());
         let mut tar = tar::Builder::new(enc);
