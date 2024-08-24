@@ -43,13 +43,11 @@ impl Cli {
                 // 启动 Plugin
                 let plugin_server_tcp_listener =
                     tokio::net::TcpListener::bind("127.0.0.1:0").await?;
-                println!(
-                    "plugin server started on: {}",
-                    plugin_server_tcp_listener.local_addr()?
-                );
-                let handler = PlatX::from_plugin_root(path.clone())?
+                let mut plugin = PlatX::from_plugin_root(path.clone())?;
+                let handler = plugin
                     .start_server(plugin_server_tcp_listener, daemon.addr.clone())
                     .await?;
+                println!("plugin server started on: {}", plugin.registed_plugin.addr);
                 handler.await?;
             }
             None => {}

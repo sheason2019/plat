@@ -9,6 +9,7 @@ export const Route = createLazyFileRoute("/isolate/$pubkey/settings/plugin")({
 
 function PluginManage() {
   const isolate = useIsolate();
+  const plugins = isolate?.plugins && Object.values(isolate?.plugins);
 
   return (
     <div className="container px-2 mx-auto">
@@ -17,7 +18,7 @@ function PluginManage() {
         <InstallPluginButton />
       </div>
       <div>
-        {isolate?.plugins.map((item) => (
+        {plugins?.map((item) => (
           <PluginCard plugin={item} key={item.config.name} />
         ))}
       </div>

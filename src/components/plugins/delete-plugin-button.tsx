@@ -10,10 +10,10 @@ import {
 import useProfile from "../../hooks/core/use-profile";
 import { invoke } from "@tauri-apps/api/core";
 import useIsolate from "../../hooks/core/use-isolate";
-import { PlatX } from "../../models/core";
+import { RegistedPlugin } from "../../models/core";
 
 interface Props {
-  plugin: PlatX;
+  plugin: RegistedPlugin;
 }
 
 export default function DeletePluginButton({ plugin }: Props) {

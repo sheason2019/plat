@@ -23,12 +23,15 @@ pub fn create_router(plugin_root: PathBuf, platx_config: PlatXConfig) -> anyhow:
     let assets_dir = ServeDir::new(assets_path.clone())
         .not_found_service(ServeFile::new(assets_path.join("index.html")));
 
+    let plugin_file = ServeFile::new(plugin_root.join("plugin.json"));
+
     let mut state = ServerState::new();
     state.with_wasm_context(plugin_root, platx_config)?;
 
     let router = Router::new()
         .nest_service("/", assets_dir.clone())
         .fallback_service(assets_dir)
+        .route_service("/plugin.json", plugin_file)
         .route("/invoke/:ty", post(invoke_handler))
         .route(
             "/plugin/:scope/:name",

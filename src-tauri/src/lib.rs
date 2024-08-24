@@ -9,10 +9,8 @@ type PlatState<'a> = State<'a, Mutex<Profile>>;
 
 #[tauri::command]
 async fn get_profile(state: PlatState<'_>) -> Result<String, ()> {
-    let profile = state.lock().await;
-    let profile_dto = profile.as_dto();
-
-    Ok(serde_json::to_string(&profile_dto).expect("profile to dto json failed"))
+    let profile_json = state.lock().await.to_json_string();
+    Ok(profile_json)
 }
 
 #[tauri::command]

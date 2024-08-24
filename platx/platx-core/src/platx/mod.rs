@@ -1,6 +1,6 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use daemon::{PlatXConfig, RegistedPlugin};
 use tokio::sync::mpsc::Sender;
 
@@ -40,27 +40,32 @@ impl PlatX {
             self.registed_plugin.config.clone(),
         )
         .context("create router failed")?;
-        self.registed_plugin.addr = listener.local_addr()?.to_string();
+        self.registed_plugin.addr = format!("http://{}", listener.local_addr()?.to_string());
 
         let (handler, tx) = utils::start_server_with_graceful_shutdown_channel(listener, router);
         self.stop_server_sender = Some(tx.clone());
 
         // 向 Daemon 服务器注册服务，若注册失败则停止服务
-        let url = url::Url::parse(&deamon_address)?.join("plugin")?;
+        let url = url::Url::parse(&deamon_address)
+            .context(format!(
+                "parse daemon address {} failed",
+                deamon_address.clone()
+            ))?
+            .join("plugin")?;
+        let mut data = HashMap::new();
+        data.insert("addr", self.registed_plugin.addr.clone());
+
         let client = reqwest::Client::new();
-        match client
-            .post(url)
-            .json(&serde_json::to_string(&self.registed_plugin)?)
-            .send()
-            .await
-        {
+        let response = match client.post(url).json(&data).send().await {
             Err(_) => {
-                println!("send regist request failed");
                 tx.send(()).await?;
+                return Err(anyhow!("send regist plugin request failed"));
             }
-            Ok(response) => {
-                println!("send regist request success: {}", response.text().await?);
-            }
+            Ok(response) => response,
+        };
+        if !response.status().is_success() {
+            tx.send(()).await?;
+            return Err(anyhow!("regist plugin failed: {}", response.text().await?));
         }
 
         Ok(handler)

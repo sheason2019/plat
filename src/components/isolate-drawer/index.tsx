@@ -10,6 +10,7 @@ import AccountToggler from "./buttons/account-toggler";
 
 export default function IsolateDrawer() {
   const isolate = useIsolate();
+  const plugins = isolate?.plugins && Object.values(isolate.plugins);
   const { isOpen, onClose } = useIsolateDrawer();
 
   return (
@@ -44,7 +45,7 @@ export default function IsolateDrawer() {
               <div className="flex items-stretch flex-1">
                 <div className="flex-1 px-2"></div>
                 <div className="w-16 flex flex-col mr-2">
-                  {isolate?.plugins.map((plugin) => (
+                  {plugins?.map((plugin) => (
                     <Fragment key={plugin.config.name}>
                       {plugin.config.entries.map((entry) => (
                         <EntryButton

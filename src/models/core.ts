@@ -5,11 +5,11 @@ export interface Profile {
 export interface Isolate {
   public_key: string;
   private_key: string;
-  plugins: PlatX[];
+  plugins: Record<string, RegistedPlugin>;
 }
 
-export interface PlatX {
-  port: number;
+export interface RegistedPlugin {
+  addr: string;
   config: PlatXConfig;
 }
 

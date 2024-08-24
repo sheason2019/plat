@@ -1,14 +1,14 @@
 use std::{
     fs::{self},
+    ops::Deref,
     path::Path,
 };
 
 use anyhow::Context;
 use platx_core::platx::daemon::PlatXDaemon;
+use serde_json::{json, Value};
 
 use crate::core::isolate::Isolate;
-
-use super::dto::ProfileDTO;
 
 pub struct Profile {
     pub isolates: Vec<Isolate>,
@@ -22,41 +22,81 @@ impl Profile {
     }
 
     pub async fn init() -> anyhow::Result<Self> {
-        let mut profile = Profile::new();
-        let profile_dto = ProfileDTO::from_fs()?;
-        let data_root = std::path::Path::new("data");
+        let mut isolates: Vec<Isolate> = Vec::new();
+        let data_root = Path::new("data");
+        let read_dir = std::fs::read_dir(data_root)?;
+        for dir in read_dir {
+            let dir = dir?;
 
-        for isolate_dto in &profile_dto.isolates {
-            let isolate_root = data_root.join(isolate_dto.public_key.clone());
+            let filename = dir.file_name().into_string().unwrap();
+            if filename.starts_with(".") {
+                continue;
+            }
+
+            let isolate_file = dir.path().join("isolate.json");
+            if !isolate_file.exists() {
+                continue;
+            }
+
+            let isolate_json: Value =
+                serde_json::from_slice(std::fs::read(isolate_file)?.as_ref())?;
+
             let mut isolate = Isolate {
-                public_key: isolate_dto.public_key.clone(),
-                private_key: isolate_dto.private_key.clone(),
+                public_key: isolate_json["public_key"].as_str().unwrap().to_string(),
+                private_key: isolate_json["private_key"].as_str().unwrap().to_string(),
                 daemon: PlatXDaemon::new(),
             };
+            println!(
+                "public_key: {}, private_key: {}",
+                &isolate.public_key, &isolate.private_key
+            );
+            isolate.daemon.start_server().await?;
             isolate
-                .init_plugin(isolate_root.join("plugins"))
+                .init_plugin(dir.path().join("plugins"))
                 .await
                 .context(format!(
                     "isolate {} init plugins failed",
-                    isolate_dto.public_key.clone()
+                    isolate.public_key.clone()
                 ))?;
 
-            profile.isolates.push(isolate);
+            isolates.push(isolate);
         }
 
-        Ok(profile)
+        Ok(Profile { isolates })
     }
 
     // 将 Profile 持久化保存到本地
     pub fn save(&self) -> anyhow::Result<()> {
-        let profile_dto = ProfileDTO::from_profile(self);
-        profile_dto.save()?;
+        let data_root = Path::new("data");
+        for isolate in &self.isolates {
+            let isolate_path = data_root.join(&isolate.public_key).join("isolate.json");
+            let isolate_json = json!({
+                "public_key": &isolate.public_key,
+                "private_key": &isolate.private_key,
+            });
+            fs::write(isolate_path, isolate_json.to_string())?;
+        }
 
         Ok(())
     }
 
-    pub fn as_dto(&self) -> ProfileDTO {
-        ProfileDTO::from_profile(self)
+    pub fn to_json_string(&self) -> String {
+        let mut isolates: Vec<Value> = Vec::new();
+        for isolate in &self.isolates {
+            let plugin_map = isolate.daemon.plugin_map.lock().unwrap();
+            let isolate_json = json!({
+                "public_key": &isolate.public_key,
+                "private_key": &isolate.private_key,
+                "plugins": plugin_map.deref(),
+            });
+            isolates.push(isolate_json);
+        }
+
+        let profile = json!({
+            "isolates": &isolates,
+        });
+
+        serde_json::to_string(&profile).unwrap()
     }
 
     pub async fn generate_isolate(&mut self) -> anyhow::Result<String> {
