@@ -43,7 +43,7 @@ impl Profile {
                 plugin_handler_map: HashMap::new(),
             };
 
-            isolate.daemon.start_server().await?;
+            let _ = isolate.daemon.start_server().await?;
             isolate
                 .init_plugin(dir.path().join("plugins"))
                 .await

@@ -33,7 +33,7 @@ impl Isolate {
         let private_key = BASE64_URL_SAFE.encode(pkcs8_bytes);
 
         let mut daemon = PlatXDaemon::new();
-        daemon.start_server().await?;
+        let _ = daemon.start_server().await?;
 
         Ok(Isolate {
             public_key,
