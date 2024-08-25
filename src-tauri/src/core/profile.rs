@@ -16,12 +16,6 @@ pub struct Profile {
 }
 
 impl Profile {
-    const fn new() -> Self {
-        Profile {
-            isolates: Vec::new(),
-        }
-    }
-
     pub async fn init() -> anyhow::Result<Self> {
         let mut isolates: Vec<Isolate> = Vec::new();
         let data_root = Path::new("data");
@@ -86,6 +80,7 @@ impl Profile {
             let isolate_json = json!({
                 "public_key": &isolate.public_key,
                 "private_key": &isolate.private_key,
+                "daemon_addr": &isolate.daemon.addr,
                 "plugins": plugin_map.deref(),
             });
             isolates.push(isolate_json);

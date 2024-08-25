@@ -17,9 +17,15 @@ function PluginManage() {
         <h1 className="text-xl flex-1">已安装的插件</h1>
         <InstallPluginButton />
       </div>
+      <p className="my-2">
+        <b className="mr-2">Daemon 服务</b>
+        <span>{isolate?.daemon_addr}</span>
+      </p>
       <div>
         {plugins?.map((item) => (
-          <PluginCard plugin={item} key={item.config.name} />
+          <div key={item.config.name} className="mb-2">
+            <PluginCard plugin={item} />
+          </div>
         ))}
       </div>
     </div>

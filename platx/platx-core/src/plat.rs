@@ -44,7 +44,7 @@ impl WasiView for StoreState {
 }
 
 impl PlatImports for StoreState {
-    fn emit(&mut self, ty: String, payload: String) -> String {
+    fn emit(&mut self, _ty: String, _payload: String) -> String {
         todo!()
     }
 }

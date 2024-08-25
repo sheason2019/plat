@@ -5,6 +5,7 @@ export interface Profile {
 export interface Isolate {
   public_key: string;
   private_key: string;
+  daemon_addr: String;
   plugins: Record<string, RegistedPlugin>;
 }
 
