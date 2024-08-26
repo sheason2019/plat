@@ -72,7 +72,7 @@ impl Isolate {
             let tcp_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
 
             plugin
-                .start_server(tcp_listener, self.daemon.addr.clone())
+                .start_server(tcp_listener, self.daemon.addr.clone(), None)
                 .await
                 .context("start server failed")?;
             self.plugin_handler_map
@@ -108,7 +108,7 @@ impl Isolate {
         let mut plugin = PlatX::from_plugin_root(plugin_path)?;
         let tcp_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
         plugin
-            .start_server(tcp_listener, self.daemon.addr.clone())
+            .start_server(tcp_listener, self.daemon.addr.clone(), None)
             .await?;
 
         Ok(())

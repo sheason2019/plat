@@ -33,6 +33,7 @@ impl PlatX {
         &mut self,
         listener: tokio::net::TcpListener,
         deamon_address: String,
+        plugin_address: Option<String>,
     ) -> anyhow::Result<JoinHandle<()>> {
         // 启动服务
         let router = server::create_router(
@@ -52,7 +53,14 @@ impl PlatX {
             ))?
             .join("plugin")?;
         let mut data = HashMap::new();
-        data.insert("addr", self.registed_plugin.addr.clone());
+        match plugin_address {
+            Some(value) => {
+                data.insert("addr", value.clone());
+            }
+            None => {
+                data.insert("addr", self.registed_plugin.addr.clone());
+            }
+        }
 
         let client = reqwest::Client::new();
         let response = match client.post(url).json(&data).send().await {

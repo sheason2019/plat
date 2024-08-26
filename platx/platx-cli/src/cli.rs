@@ -28,6 +28,8 @@ enum Commands {
         path: std::path::PathBuf,
         #[arg(short, long)]
         daemon_address: Option<String>,
+        #[arg(short, long)]
+        plugin_address: Option<String>,
     },
 }
 
@@ -43,11 +45,12 @@ impl Cli {
             Some(Commands::Serve {
                 path,
                 daemon_address,
+                plugin_address,
             }) => {
                 let daemon_address_string = match daemon_address {
                     None => {
                         let mut daemon = PlatXDaemon::new();
-                        daemon.start_server().await?;
+                        let _ = daemon.start_server().await?;
                         daemon.addr
                     }
                     Some(address) => address.clone(),
@@ -60,7 +63,11 @@ impl Cli {
                     tokio::net::TcpListener::bind("127.0.0.1:0").await?;
                 let mut plugin = PlatX::from_plugin_root(path.clone())?;
                 let handler = plugin
-                    .start_server(plugin_server_tcp_listener, daemon_address_string)
+                    .start_server(
+                        plugin_server_tcp_listener,
+                        daemon_address_string,
+                        plugin_address.clone(),
+                    )
                     .await?;
                 println!("plugin server started on: {}", plugin.registed_plugin.addr);
                 handler.await?;
