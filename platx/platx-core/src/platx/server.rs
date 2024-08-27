@@ -1,115 +1,232 @@
-use std::{
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
+use std::fs;
+use std::path::Path;
+use std::{path::PathBuf, sync::Arc};
 
-use anyhow::Context;
-use axum::{
-    extract::{Path, State},
-    routing::post,
-    Router,
-};
-use tower_http::services::{ServeDir, ServeFile};
-use wasmtime::component::{Component, Linker};
-use wasmtime::{Config, Engine, Store};
+use http_body_util::{BodyExt, Full};
+use hyper::server::conn::http1;
+use hyper::{Method, Response};
+use tokio::net::TcpListener;
+use tokio::task::JoinHandle;
+use wasmtime::component::{Component, Linker, ResourceTable};
+use wasmtime::{Config, Engine, Result, Store};
+use wasmtime_wasi::{DirPerms, FilePerms, WasiCtx, WasiCtxBuilder, WasiView};
+use wasmtime_wasi_http::bindings::http::types::Scheme;
+use wasmtime_wasi_http::bindings::ProxyPre;
+use wasmtime_wasi_http::body::HyperOutgoingBody;
+use wasmtime_wasi_http::io::TokioIo;
+use wasmtime_wasi_http::{WasiHttpCtx, WasiHttpView};
 
 use super::PlatXConfig;
-use crate::plat::{Plat, StoreState};
 
-pub fn create_router(plugin_root: PathBuf, platx_config: PlatXConfig) -> anyhow::Result<Router> {
-    let assets_root = platx_config.assets_root.clone();
-
-    let assets_path = plugin_root.join(assets_root.clone());
-    let assets_dir = ServeDir::new(assets_path.clone())
-        .not_found_service(ServeFile::new(assets_path.join("index.html")));
-
-    let plugin_file = ServeFile::new(plugin_root.join("plugin.json"));
-
-    let mut state = ServerState::new();
-    state.with_wasm_context(plugin_root, platx_config)?;
-
-    let router = Router::new()
-        .nest_service("/", assets_dir.clone())
-        .fallback_service(assets_dir)
-        .route_service("/plugin.json", plugin_file)
-        .route("/invoke/:ty", post(invoke_handler))
-        .route(
-            "/plugin/:scope/:name",
-            post(|| async { "Extern plugin handler" }),
-        )
-        .with_state(Arc::new(Mutex::new(state)));
-
-    Ok(router)
+pub struct ServerHandler {
+    pub handler: JoinHandle<()>,
+    pub addr: String,
 }
 
-async fn invoke_handler(
-    State(state): State<Arc<Mutex<ServerState>>>,
-    Path(ty): Path<String>,
-    body: String,
-) -> String {
-    let (world, mut store) = state.lock().unwrap().create_wasm().unwrap();
-
-    world
-        .call_emit(&mut store, &ty, &body)
-        .expect("call reducer failed")
-}
-
-struct ServerState {
-    wasm_context: Option<WasmContext>,
-}
-
-struct WasmContext {
-    engine: Engine,
-    linker: Linker<StoreState>,
-    component: Component,
+pub async fn start_server(
     plugin_root: PathBuf,
+    platx_config: PlatXConfig,
+) -> anyhow::Result<ServerHandler> {
+    let mut config = Config::new();
+    config.async_support(true);
+    let engine = Engine::new(&config)?;
+
+    let component = Component::from_file(&engine, plugin_root.join(platx_config.wasm_root))?;
+
+    let mut linker = Linker::new(&engine);
+    wasmtime_wasi::add_to_linker_async(&mut linker)?;
+    wasmtime_wasi_http::add_only_http_to_linker_async(&mut linker)?;
+    let pre = ProxyPre::new(linker.instantiate_pre(&component)?)?;
+
+    let server = Arc::new(PlatServer { pre });
+
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+
+    let init_handler = tokio::task::spawn({
+        let server = server.clone();
+        async move {
+            let mut store = Store::new(
+                server.pre.engine(),
+                PlatClientState {
+                    table: ResourceTable::new(),
+                    wasi: WasiCtxBuilder::new().inherit_stdio().build(),
+                    http: WasiHttpCtx::new(),
+                },
+            );
+            let instance = linker
+                .instantiate_async(&mut store, &component)
+                .await
+                .expect("get plugin instance failed");
+            let init_func = match instance.get_typed_func::<(), ()>(&mut store, "on-init") {
+                Ok(value) => value,
+                Err(e) => {
+                    println!("已跳过 Plugin 初始化逻辑，原因：{}", e.to_string());
+                    return;
+                }
+            };
+
+            init_func
+                .call_async(&mut store, ())
+                .await
+                .expect("plugin init func");
+        }
+    });
+
+    let addr = format!("http://{}", listener.local_addr().unwrap());
+
+    let server_handler = tokio::task::spawn(async move {
+        loop {
+            let (client, _addr) = listener
+                .accept()
+                .await
+                .expect("plugin server accept failed");
+            let server = server.clone();
+            let plugin_root = plugin_root.clone();
+            let plugin_json_path = plugin_root.clone().join("plugin.json");
+            tokio::task::spawn(async move {
+                if let Err(_e) = http1::Builder::new()
+                    .keep_alive(true)
+                    .serve_connection(
+                        TokioIo::new(client),
+                        hyper::service::service_fn(move |req| {
+                            let server = server.clone();
+                            let plugin_root = plugin_root.clone();
+                            let plugin_json_path = plugin_json_path.clone();
+                            async move {
+                                match (req.method(), req.uri().path()) {
+                                    (&Method::GET, "/plugin.json") => {
+                                        send_plugin_json(req, plugin_json_path)
+                                    }
+                                    (_method, _uri) => {
+                                        server.handle_request(req, plugin_root.clone()).await
+                                    }
+                                }
+                            }
+                        }),
+                    )
+                    .await
+                {}
+            });
+        }
+    });
+
+    let handler = tokio::task::spawn(async move {
+        let _ = init_handler.await;
+        let _ = server_handler.await;
+    });
+    Ok(ServerHandler {
+        handler,
+        addr: addr.clone(),
+    })
 }
 
-impl ServerState {
-    fn new() -> Self {
-        ServerState { wasm_context: None }
-    }
+fn send_plugin_json(
+    _req: hyper::Request<hyper::body::Incoming>,
+    plugin_json_path: impl AsRef<Path>,
+) -> Result<hyper::Response<HyperOutgoingBody>> {
+    let plugin_json = fs::read(plugin_json_path)?;
 
-    fn with_wasm_context(
-        &mut self,
-        plugin_root: PathBuf,
-        platx_config: PlatXConfig,
-    ) -> anyhow::Result<()> {
-        let mut config = Config::new();
-        config.async_support(true);
-        config.wasm_component_model(true);
-        config.debug_info(true);
+    let body = Full::new(plugin_json.into())
+        .map_err(|never| match never {})
+        .boxed();
+    let mut res = Response::new(body);
+    res.headers_mut()
+        .insert("Content-Type", "application/json".parse().unwrap());
 
-        let engine = Engine::new(&config).context("create engine failed")?;
+    Ok(res)
+}
 
-        let mut linker: Linker<StoreState> = Linker::new(&engine);
-        wasmtime_wasi::add_to_linker_sync(&mut linker)
-            .context("add wasmtime wasi to linker failed")?;
-        Plat::add_to_linker(&mut linker, |state| state).context("add plat to linker failed")?;
+struct PlatServer {
+    pre: ProxyPre<PlatClientState>,
+}
 
-        let component =
-            Component::from_file(&engine, plugin_root.join(platx_config.wasm_root).clone())
-                .context("create component from file failed")?;
+impl PlatServer {
+    async fn handle_request(
+        &self,
+        req: hyper::Request<hyper::body::Incoming>,
+        plugin_dir: PathBuf,
+    ) -> Result<hyper::Response<HyperOutgoingBody>> {
+        // Create per-http-request state within a `Store` and prepare the
+        // initial resources  passed to the `handle` function.
+        let mut store = Store::new(
+            self.pre.engine(),
+            PlatClientState {
+                table: ResourceTable::new(),
+                wasi: WasiCtxBuilder::new()
+                    .inherit_stdio()
+                    .preopened_dir(
+                        plugin_dir.join("storage"),
+                        "/storage",
+                        DirPerms::all(),
+                        FilePerms::all(),
+                    )
+                    .unwrap()
+                    .build(),
+                http: WasiHttpCtx::new(),
+            },
+        );
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+        let req = store.data_mut().new_incoming_request(Scheme::Http, req)?;
+        let out = store.data_mut().new_response_outparam(sender)?;
+        let pre = self.pre.clone();
 
-        self.wasm_context = Some(WasmContext {
-            engine,
-            linker,
-            component,
-            plugin_root: plugin_root.clone(),
+        // Run the http request itself in a separate task so the task can
+        // optionally continue to execute beyond after the initial
+        // headers/response code are sent.
+        let task = tokio::task::spawn(async move {
+            let proxy = pre.instantiate_async(&mut store).await?;
+
+            if let Err(e) = proxy
+                .wasi_http_incoming_handler()
+                .call_handle(store, req, out)
+                .await
+            {
+                return Err(e);
+            }
+
+            Ok(())
         });
 
-        Ok(())
+        match receiver.await {
+            // If the client calls `response-outparam::set` then one of these
+            // methods will be called.
+            Ok(Ok(resp)) => Ok(resp),
+            Ok(Err(e)) => Err(e.into()),
+
+            // Otherwise the `sender` will get dropped along with the `Store`
+            // meaning that the oneshot will get disconnected and here we can
+            // inspect the `task` result to see what happened
+            Err(_) => {
+                let e = match task.await {
+                    Ok(r) => r.unwrap_err(),
+                    Err(e) => e.into(),
+                };
+                anyhow::bail!("guest never invoked `response-outparam::set` method: {e:?}")
+            }
+        }
     }
+}
 
-    fn create_wasm(&self) -> anyhow::Result<(Plat, Store<StoreState>)> {
-        let wasm_context = self.wasm_context.as_ref().unwrap();
-        let mut store = Store::new(
-            &wasm_context.engine,
-            StoreState::new(wasm_context.plugin_root.clone()),
-        );
-        let world =
-            Plat::instantiate(&mut store, &wasm_context.component, &wasm_context.linker).unwrap();
+struct PlatClientState {
+    wasi: WasiCtx,
+    http: WasiHttpCtx,
+    table: ResourceTable,
+}
 
-        Ok((world, store))
+impl WasiView for PlatClientState {
+    fn ctx(&mut self) -> &mut WasiCtx {
+        &mut self.wasi
+    }
+    fn table(&mut self) -> &mut ResourceTable {
+        &mut self.table
+    }
+}
+
+impl WasiHttpView for PlatClientState {
+    fn ctx(&mut self) -> &mut WasiHttpCtx {
+        &mut self.http
+    }
+    fn table(&mut self) -> &mut ResourceTable {
+        &mut self.table
     }
 }

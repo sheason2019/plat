@@ -7,21 +7,18 @@ use std::{
     time::Duration,
 };
 
-use axum::{
-    extract::{Json, State},
-    routing::post,
-    Router,
+use http_body_util::{combinators::BoxBody, BodyExt, Full};
+use hyper::{
+    body::{Buf, Bytes},
+    server::conn::http1,
+    Method, Response, StatusCode,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use tokio::sync::mpsc::Sender;
-
-use crate::utils;
+use wasmtime_wasi_http::io::TokioIo;
 
 pub struct PlatXDaemon {
     pub addr: String,
     pub plugin_map: Arc<Mutex<HashMap<String, RegistedPlugin>>>,
-    stop_server_signal: Option<Sender<()>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -35,7 +32,6 @@ impl PlatXDaemon {
         PlatXDaemon {
             addr: String::new(),
             plugin_map: Arc::new(Mutex::new(HashMap::new())),
-            stop_server_signal: None,
         }
     }
 
@@ -43,24 +39,44 @@ impl PlatXDaemon {
         let tcp_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
         self.addr = format!("http://{}", tcp_listener.local_addr().unwrap().to_string());
 
-        let router = Router::new()
-            .route("/plugin", post(regist_handler).get(get_plugins_handler))
-            .with_state(self.plugin_map.clone());
-        let (handler, signal) =
-            utils::start_server_with_graceful_shutdown_channel(tcp_listener, router);
-
-        let (health_tx, mut health_rx) = tokio::sync::mpsc::channel::<()>(1);
-        self.stop_server_signal = Some(health_tx.clone());
+        let plugin_map = self.plugin_map.clone();
+        let deamon_handler = tokio::task::spawn(async move {
+            loop {
+                let plugin_map = plugin_map.clone();
+                let (client, _addr) = tcp_listener
+                    .accept()
+                    .await
+                    .expect("accept tcp listener failed");
+                tokio::spawn(async move {
+                    let plugin_map = plugin_map.clone();
+                    let _ = http1::Builder::new()
+                        .keep_alive(true)
+                        .serve_connection(
+                            TokioIo::new(client),
+                            hyper::service::service_fn(|req| {
+                                let plugin_map = plugin_map.clone();
+                                async move {
+                                    match (req.method(), req.uri().path()) {
+                                        (&Method::GET, "/plugin") => {
+                                            get_plugins_handler(plugin_map.clone()).await
+                                        }
+                                        (&Method::POST, "/plugin") => {
+                                            regist_handler(req, plugin_map.clone()).await
+                                        }
+                                        (_method, _path) => todo!(),
+                                    }
+                                }
+                            }),
+                        )
+                        .await;
+                });
+            }
+        });
 
         let plugin_map = self.plugin_map.clone();
         let health_handler = tokio::task::spawn(async move {
             loop {
-                tokio::select! {
-                    _ = health_rx.recv() => {
-                        break;
-                    }
-                    _ = tokio::time::sleep(Duration::from_secs(5)) => { }
-                }
+                tokio::time::sleep(Duration::from_secs(5)).await;
 
                 let mut remove_key: Vec<String> = Vec::new();
                 let keys: Vec<String> = plugin_map
@@ -85,13 +101,11 @@ impl PlatXDaemon {
                     plugin_map.as_ref().lock().unwrap().remove(&key);
                 }
             }
-
-            signal.send(()).await.unwrap();
         });
 
         Ok(async move {
-            handler.await.unwrap();
             health_handler.await.unwrap();
+            deamon_handler.await.unwrap();
         })
     }
 
@@ -111,8 +125,8 @@ impl PlatXDaemon {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PlatXConfig {
     pub name: String,
+    pub version: String,
     pub wasm_root: String,
-    pub assets_root: String,
     pub entries: Vec<PlatXEntry>,
 }
 
@@ -135,17 +149,20 @@ impl PlatXConfig {
 }
 
 async fn regist_handler(
-    State(state): State<Arc<Mutex<HashMap<String, RegistedPlugin>>>>,
-    Json(target): Json<Value>,
-) -> String {
-    let addr = target
+    req: hyper::Request<hyper::body::Incoming>,
+    plugin_map: Arc<Mutex<HashMap<String, RegistedPlugin>>>,
+) -> anyhow::Result<Response<BoxBody<Bytes, hyper::Error>>> {
+    let whole_body = req.collect().await?.aggregate();
+    let body: serde_json::Value = serde_json::from_reader(whole_body.reader())?;
+    let addr = body
         .as_object()
         .expect("invalid input")
         .get("addr")
-        .expect("parse addr failed")
+        .expect("parse addr faield")
         .as_str()
         .expect("parse addr as string failed");
-    let target = url::Url::parse(addr).expect("parse addr as url failed");
+    let target =
+        url::Url::parse(addr).expect(format!("parse addr {} as url failed", &addr).as_ref());
 
     let config = reqwest::get(target.join("plugin.json").unwrap())
         .await
@@ -159,16 +176,34 @@ async fn regist_handler(
         addr: addr.to_string(),
         config,
     };
-    state
+
+    plugin_map
         .lock()
         .unwrap()
         .insert(registed_plugin.config.name.clone(), registed_plugin);
 
-    "OK".to_string()
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .body(
+            Full::new("OK".into())
+                .map_err(|never| match never {})
+                .boxed(),
+        )
+        .unwrap();
+    Ok(response)
 }
 
 async fn get_plugins_handler(
-    State(state): State<Arc<Mutex<HashMap<String, RegistedPlugin>>>>,
-) -> String {
-    serde_json::to_string(state.lock().unwrap().deref()).expect("json stringify plugin map failed")
+    plugin_map: Arc<Mutex<HashMap<String, RegistedPlugin>>>,
+) -> anyhow::Result<Response<BoxBody<Bytes, hyper::Error>>> {
+    let value = serde_json::to_string(plugin_map.lock().unwrap().deref())?;
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .body(
+            Full::new(value.into())
+                .map_err(|never| match never {})
+                .boxed(),
+        )
+        .unwrap();
+    Ok(response)
 }

@@ -69,10 +69,8 @@ impl Isolate {
                 plugin_dir.to_str().unwrap()
             ))?;
 
-            let tcp_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
-
             plugin
-                .start_server(tcp_listener, self.daemon.addr.clone(), None)
+                .start_server(self.daemon.addr.clone(), None)
                 .await
                 .context("start server failed")?;
             self.plugin_handler_map
@@ -90,7 +88,7 @@ impl Isolate {
         match self.plugin_handler_map.remove(&name) {
             None => return Ok(()),
             Some(plugin) => {
-                plugin.stop().await;
+                plugin.stop();
                 plugin.delete_in_fs()?;
             }
         };
@@ -106,10 +104,7 @@ impl Isolate {
         let untarer = platx_core::bundler::untarer::Untarer::new(plugin_file_path);
         let plugin_path = untarer.untar_with_plugin_root(plugin_root)?;
         let mut plugin = PlatX::from_plugin_root(plugin_path)?;
-        let tcp_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
-        plugin
-            .start_server(tcp_listener, self.daemon.addr.clone(), None)
-            .await?;
+        plugin.start_server(self.daemon.addr.clone(), None).await?;
 
         Ok(())
     }

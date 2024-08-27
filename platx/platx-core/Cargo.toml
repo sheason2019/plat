@@ -4,9 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = { version = "0.7.5" }
-tower = { version = "0.4", features = ["util"] }
-tower-http = { version = "0.5.0", features = ["fs", "trace"] }
 reqwest = { version = "0.12", features = ["json"] }
 wasmtime = "24.0.0"
 wasmtime-wasi = "24.0.0"
@@ -19,3 +16,6 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tar = { workspace = true }
 flate2 = { workspace = true }
+wasmtime-wasi-http = "24.0.0"
+hyper = "1.4.1"
+http-body-util = "0.1.2"

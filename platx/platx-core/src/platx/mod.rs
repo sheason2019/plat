@@ -2,17 +2,15 @@ use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::{anyhow, Context};
 use daemon::{PlatXConfig, RegistedPlugin};
-use tokio::{sync::mpsc::Sender, task::JoinHandle};
-
-use crate::utils;
+use server::ServerHandler;
 
 pub mod daemon;
 pub mod server;
 
 pub struct PlatX {
     pub registed_plugin: RegistedPlugin,
+    pub handler: Option<ServerHandler>,
     plugin_root: PathBuf,
-    stop_server_sender: Option<Sender<()>>,
 }
 
 impl PlatX {
@@ -25,25 +23,24 @@ impl PlatX {
                 config,
             },
             plugin_root,
-            stop_server_sender: None,
+            handler: None,
         })
     }
 
     pub async fn start_server(
         &mut self,
-        listener: tokio::net::TcpListener,
         deamon_address: String,
         plugin_address: Option<String>,
-    ) -> anyhow::Result<JoinHandle<()>> {
+    ) -> anyhow::Result<()> {
         // 启动服务
-        let router = server::create_router(
+        let handler = server::start_server(
             self.plugin_root.clone(),
             self.registed_plugin.config.clone(),
         )
+        .await
         .context("create router failed")?;
-        self.registed_plugin.addr = format!("http://{}", listener.local_addr()?.to_string());
-
-        let (handler, tx) = utils::start_server_with_graceful_shutdown_channel(listener, router);
+        self.handler = Some(handler);
+        self.registed_plugin.addr = self.handler.as_ref().unwrap().addr.clone();
 
         // 向 Daemon 服务器注册服务，若注册失败则停止服务
         let url = url::Url::parse(&deamon_address)
@@ -65,28 +62,21 @@ impl PlatX {
         let client = reqwest::Client::new();
         let response = match client.post(url).json(&data).send().await {
             Err(_) => {
-                tx.send(()).await.unwrap();
+                self.stop();
                 return Err(anyhow!("send regist plugin request failed"));
             }
             Ok(response) => response,
         };
         if !response.status().is_success() {
-            tx.send(()).await.unwrap();
+            self.stop();
             return Err(anyhow!("regist plugin failed: {}", response.text().await?));
         }
 
-        self.stop_server_sender = Some(tx);
-
-        Ok(handler)
+        Ok(())
     }
 
-    pub async fn stop(&self) {
-        self.stop_server_sender
-            .as_ref()
-            .unwrap()
-            .send(())
-            .await
-            .expect("send stop signal failed");
+    pub fn stop(&self) {
+        self.handler.as_ref().unwrap().handler.abort();
     }
 
     pub fn delete_in_fs(&self) -> anyhow::Result<()> {

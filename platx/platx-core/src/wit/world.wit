@@ -1,6 +1,0 @@
-package plat:plugin;
-
-world plat {
-    import emit: func(ty: string, payload: string) -> string;
-    export emit: func(ty: string, payload: string) -> string;
-}
