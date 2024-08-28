@@ -75,8 +75,14 @@ impl Profile {
     // 将 Profile 持久化保存到本地
     pub fn save(&self) -> anyhow::Result<()> {
         let data_root = self.data_root.clone();
+
         for isolate in &self.isolates {
             let isolate_path = data_root.join(&isolate.public_key).join("isolate.json");
+            let parent = isolate_path.parent().unwrap();
+            if !parent.exists() {
+                fs::create_dir_all(parent)?;
+            }
+
             let isolate_json = json!({
                 "public_key": &isolate.public_key,
                 "private_key": &isolate.private_key,
