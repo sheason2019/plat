@@ -59,18 +59,19 @@ impl PlatX {
             }
         }
 
-        let client = reqwest::Client::new();
-        let response = match client.post(url).json(&data).send().await {
-            Err(_) => {
-                self.stop();
-                return Err(anyhow!("send regist plugin request failed"));
-            }
-            Ok(response) => response,
-        };
-        if !response.status().is_success() {
-            self.stop();
-            return Err(anyhow!("regist plugin failed: {}", response.text().await?));
-        }
+        // TODO: 替换 reqwest
+        // let client = reqwest::Client::new();
+        // let response = match client.post(url).json(&data).send().await {
+        //     Err(_) => {
+        //         self.stop();
+        //         return Err(anyhow!("send regist plugin request failed"));
+        //     }
+        //     Ok(response) => response,
+        // };
+        // if !response.status().is_success() {
+        //     self.stop();
+        //     return Err(anyhow!("regist plugin failed: {}", response.text().await?));
+        // }
 
         Ok(())
     }

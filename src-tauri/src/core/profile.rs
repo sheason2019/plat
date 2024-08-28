@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     fs::{self},
     ops::Deref,
-    path::Path,
+    path::{self, Path, PathBuf},
 };
 
 use anyhow::Context;
@@ -12,14 +12,20 @@ use serde_json::{json, Value};
 use crate::core::isolate::Isolate;
 
 pub struct Profile {
+    pub data_root: PathBuf,
     pub isolates: Vec<Isolate>,
 }
 
 impl Profile {
-    pub async fn init() -> anyhow::Result<Self> {
+    pub async fn init(data_root: PathBuf) -> anyhow::Result<Self> {
         let mut isolates: Vec<Isolate> = Vec::new();
-        let data_root = Path::new("data");
-        let read_dir = std::fs::read_dir(data_root)?;
+        let data_root = path::Path::new(&data_root);
+        println!("data root {}", data_root.as_os_str().to_str().unwrap());
+        if !data_root.exists() {
+            fs::create_dir_all(data_root).context("create data_root failed")?;
+        }
+
+        let read_dir = std::fs::read_dir(data_root).context("read dir failed")?;
         for dir in read_dir {
             let dir = dir?;
 
@@ -33,10 +39,15 @@ impl Profile {
                 continue;
             }
 
-            let isolate_json: Value =
-                serde_json::from_slice(std::fs::read(isolate_file)?.as_ref())?;
+            let isolate_json: Value = serde_json::from_slice(
+                std::fs::read(isolate_file)
+                    .context("read isolate file failed")?
+                    .as_ref(),
+            )
+            .context("serilize isolate failed")?;
 
             let mut isolate = Isolate {
+                data_root: data_root.to_path_buf(),
                 public_key: isolate_json["public_key"].as_str().unwrap().to_string(),
                 private_key: isolate_json["private_key"].as_str().unwrap().to_string(),
                 daemon: PlatXDaemon::new(),
@@ -55,12 +66,15 @@ impl Profile {
             isolates.push(isolate);
         }
 
-        Ok(Profile { isolates })
+        Ok(Profile {
+            data_root: data_root.to_path_buf(),
+            isolates,
+        })
     }
 
     // 将 Profile 持久化保存到本地
     pub fn save(&self) -> anyhow::Result<()> {
-        let data_root = Path::new("data");
+        let data_root = self.data_root.clone();
         for isolate in &self.isolates {
             let isolate_path = data_root.join(&isolate.public_key).join("isolate.json");
             let isolate_json = json!({
@@ -94,7 +108,7 @@ impl Profile {
     }
 
     pub async fn generate_isolate(&mut self) -> anyhow::Result<String> {
-        let isolate = Isolate::generate().await?;
+        let isolate = Isolate::generate(self.data_root.clone()).await?;
         let public_key = String::from(isolate.public_key.clone());
 
         self.isolates.push(isolate);

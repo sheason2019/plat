@@ -80,7 +80,14 @@ fn setup<'a>(app: &'a mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
     let handle = app.handle();
 
     tauri::async_runtime::block_on(async move {
-        let profile = Profile::init().await.expect("init profile failed");
+        let profile = Profile::init(
+            handle
+                .path()
+                .app_data_dir()
+                .expect("get app data dir failed"),
+        )
+        .await
+        .expect("init profile failed");
         handle.manage(Mutex::new(profile));
     });
 

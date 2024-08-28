@@ -14,6 +14,7 @@ use ring::{
 };
 
 pub struct Isolate {
+    pub data_root: PathBuf,
     pub public_key: String,
     pub private_key: String,
 
@@ -22,7 +23,7 @@ pub struct Isolate {
 }
 
 impl Isolate {
-    pub async fn generate() -> anyhow::Result<Self> {
+    pub async fn generate(data_root: PathBuf) -> anyhow::Result<Self> {
         let rng = rand::SystemRandom::new();
         let pkcs8_bytes = signature::Ed25519KeyPair::generate_pkcs8(&rng).unwrap();
 
@@ -36,6 +37,7 @@ impl Isolate {
         let _ = daemon.start_server().await?;
 
         Ok(Isolate {
+            data_root,
             public_key,
             private_key,
             daemon,
@@ -97,9 +99,7 @@ impl Isolate {
     }
 
     pub async fn install_plugin(&mut self, plugin_file_path: PathBuf) -> anyhow::Result<()> {
-        let plugin_root = Path::new("data")
-            .join(self.public_key.clone())
-            .join("plugins");
+        let plugin_root = self.data_root.join(self.public_key.clone()).join("plugins");
 
         let untarer = platx_core::bundler::untarer::Untarer::new(plugin_file_path);
         let plugin_path = untarer.untar_with_plugin_root(plugin_root)?;
