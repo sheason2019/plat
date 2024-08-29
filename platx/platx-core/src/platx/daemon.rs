@@ -92,10 +92,9 @@ impl PlatXDaemon {
                         .unwrap()
                         .join("plugin.json")
                         .unwrap();
-                    // TODO: 替换 reqwest
-                    // if reqwest::get(u).await.is_err() {
-                    //     remove_key.push(key.clone());
-                    // }
+                    if reqwest::get(u).await.is_err() {
+                        remove_key.push(key.clone());
+                    }
                 }
 
                 for key in remove_key {
@@ -165,24 +164,23 @@ async fn regist_handler(
     let target =
         url::Url::parse(addr).expect(format!("parse addr {} as url failed", &addr).as_ref());
 
-    // TODO: 替换 reqwest
-    // let config = reqwest::get(target.join("plugin.json").unwrap())
-    //     .await
-    //     .expect("request regist plugin failed")
-    //     .json::<PlatXConfig>()
-    //     .await
-    //     .expect("json deserilize failed");
-    // println!("plugin {} registed", config.name);
+    let config = reqwest::get(target.join("plugin.json").unwrap())
+        .await
+        .expect("request regist plugin failed")
+        .json::<PlatXConfig>()
+        .await
+        .expect("json deserilize failed");
+    println!("plugin {} registed", config.name);
 
-    // let registed_plugin = RegistedPlugin {
-    //     addr: addr.to_string(),
-    //     config,
-    // };
+    let registed_plugin = RegistedPlugin {
+        addr: addr.to_string(),
+        config,
+    };
 
-    // plugin_map
-    //     .lock()
-    //     .unwrap()
-    //     .insert(registed_plugin.config.name.clone(), registed_plugin);
+    plugin_map
+        .lock()
+        .unwrap()
+        .insert(registed_plugin.config.name.clone(), registed_plugin);
 
     let response = Response::builder()
         .status(StatusCode::OK)
