@@ -72,7 +72,7 @@ impl Isolate {
             ))?;
 
             plugin
-                .start_server(self.daemon.addr.clone(), None)
+                .start_server(0, self.daemon.addr.clone(), None)
                 .await
                 .context("start server failed")?;
             self.plugin_handler_map
@@ -104,7 +104,9 @@ impl Isolate {
         let untarer = platx_core::bundler::untarer::Untarer::new(plugin_file_path);
         let plugin_path = untarer.untar_with_plugin_root(plugin_root)?;
         let mut plugin = PlatX::from_plugin_root(plugin_path)?;
-        plugin.start_server(self.daemon.addr.clone(), None).await?;
+        plugin
+            .start_server(0, self.daemon.addr.clone(), None)
+            .await?;
 
         Ok(())
     }

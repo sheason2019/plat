@@ -29,7 +29,9 @@ enum Commands {
         #[arg(short, long)]
         daemon_address: Option<String>,
         #[arg(short, long)]
-        plugin_address: Option<String>,
+        regist_address: Option<String>,
+        #[arg(short, long)]
+        port: Option<u16>,
     },
 }
 
@@ -45,7 +47,8 @@ impl Cli {
             Some(Commands::Serve {
                 path,
                 daemon_address,
-                plugin_address,
+                regist_address,
+                port,
             }) => {
                 let daemon_address_string = match daemon_address {
                     None => {
@@ -58,10 +61,14 @@ impl Cli {
                 // 启动 Plugin Daemon
                 println!("plugin daemon started on: {}", &daemon_address_string);
 
+                let port = match port {
+                    Some(val) => *val,
+                    None => 0,
+                };
                 // 启动 Plugin
                 let mut plugin = PlatX::from_plugin_root(path.clone())?;
                 plugin
-                    .start_server(daemon_address_string, plugin_address.clone())
+                    .start_server(port, daemon_address_string, regist_address.clone())
                     .await?;
                 println!("plugin server started on: {}", plugin.registed_plugin.addr);
                 plugin.handler.unwrap().handler.await?;

@@ -29,11 +29,13 @@ impl PlatX {
 
     pub async fn start_server(
         &mut self,
+        port: u16,
         deamon_address: String,
-        plugin_address: Option<String>,
+        regist_address: Option<String>,
     ) -> anyhow::Result<()> {
         // 启动服务
         let handler = server::start_server(
+            port,
             self.plugin_root.clone(),
             self.registed_plugin.config.clone(),
         )
@@ -50,7 +52,7 @@ impl PlatX {
             ))?
             .join("plugin")?;
         let mut data = HashMap::new();
-        match plugin_address {
+        match regist_address {
             Some(value) => {
                 data.insert("addr", value.clone());
             }

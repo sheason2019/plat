@@ -24,6 +24,7 @@ pub struct ServerHandler {
 }
 
 pub async fn start_server(
+    port: u16,
     plugin_root: PathBuf,
     platx_config: PlatXConfig,
 ) -> anyhow::Result<ServerHandler> {
@@ -40,7 +41,7 @@ pub async fn start_server(
 
     let server = Arc::new(PlatServer { pre });
 
-    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let listener = TcpListener::bind(format!("127.0.0.1:{}", port)).await?;
 
     let init_handler = tokio::task::spawn({
         let server = server.clone();
