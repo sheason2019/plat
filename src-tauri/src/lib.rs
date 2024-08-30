@@ -1,7 +1,9 @@
 use core::profile::Profile;
+use std::fs;
 use tokio::sync::Mutex;
 
 use tauri::{Manager, State};
+use tracing::info;
 
 pub mod core;
 
@@ -80,15 +82,27 @@ fn setup<'a>(app: &'a mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
     let handle = app.handle();
 
     tauri::async_runtime::block_on(async move {
-        let profile = Profile::init(
-            handle
-                .path()
-                .app_data_dir()
-                .expect("get app data dir failed"),
-        )
-        .await
-        .expect("init profile failed");
+        let data_root = handle.path().app_data_dir().expect("获取 AppData 目录失败");
+
+        let log_dir = data_root.join(".log");
+        if !log_dir.exists() {
+            fs::create_dir_all(log_dir.clone()).expect("创建日志目录失败");
+        }
+        let file_appender = tracing_appender::rolling::daily(log_dir, "plat.log");
+        let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+        tracing_subscriber::fmt()
+            .pretty()
+            .with_writer(non_blocking)
+            .with_ansi(false)
+            .init();
+        info!("日志模块已加载");
+
+        info!("初始化用户信息");
+        let profile = Profile::init(data_root.clone())
+            .await
+            .expect("init profile failed");
         handle.manage(Mutex::new(profile));
+        info!("用户信息初始化已完成");
     });
 
     Ok(())
