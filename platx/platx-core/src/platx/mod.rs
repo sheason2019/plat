@@ -38,6 +38,7 @@ impl PlatX {
             port,
             self.plugin_root.clone(),
             self.registed_plugin.config.clone(),
+            deamon_address.clone(),
         )
         .await
         .context("create router failed")?;
@@ -63,9 +64,9 @@ impl PlatX {
 
         let client = reqwest::Client::new();
         let response = match client.post(url).json(&data).send().await {
-            Err(_) => {
+            Err(e) => {
                 self.stop();
-                return Err(anyhow!("send regist plugin request failed"));
+                return Err(anyhow!("send regist plugin request failed: {}", e));
             }
             Ok(response) => response,
         };

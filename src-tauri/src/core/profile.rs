@@ -46,11 +46,18 @@ impl Profile {
             )
             .context("serilize isolate failed")?;
 
+            let public_key = isolate_json["public_key"].as_str().unwrap().to_string();
+            let mut daemon = PlatXDaemon::new();
+            let context = json!({
+                "public_key": public_key,
+            });
+            daemon.with_context(serde_json::to_string(&context)?);
+
             let mut isolate = Isolate {
                 data_root: data_root.to_path_buf(),
-                public_key: isolate_json["public_key"].as_str().unwrap().to_string(),
+                public_key,
                 private_key: isolate_json["private_key"].as_str().unwrap().to_string(),
-                daemon: PlatXDaemon::new(),
+                daemon,
                 plugin_handler_map: HashMap::new(),
             };
 

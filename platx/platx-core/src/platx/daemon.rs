@@ -19,6 +19,7 @@ use wasmtime_wasi_http::io::TokioIo;
 pub struct PlatXDaemon {
     pub addr: String,
     pub plugin_map: Arc<Mutex<HashMap<String, RegistedPlugin>>>,
+    context: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -32,28 +33,39 @@ impl PlatXDaemon {
         PlatXDaemon {
             addr: String::new(),
             plugin_map: Arc::new(Mutex::new(HashMap::new())),
+            context: String::new(),
         }
+    }
+
+    pub fn with_context(&mut self, context: String) {
+        self.context = context;
     }
 
     pub async fn start_server(&mut self) -> anyhow::Result<impl Future> {
         let tcp_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
         self.addr = format!("http://{}", tcp_listener.local_addr().unwrap().to_string());
 
+        let context = self.context.clone();
         let plugin_map = self.plugin_map.clone();
         let deamon_handler = tokio::task::spawn(async move {
             loop {
+                let context = context.clone();
                 let plugin_map = plugin_map.clone();
                 let (client, _addr) = tcp_listener
                     .accept()
                     .await
                     .expect("accept tcp listener failed");
                 tokio::spawn(async move {
+                    let context = context.clone();
                     let plugin_map = plugin_map.clone();
                     let _ = http1::Builder::new()
                         .keep_alive(true)
+                        .preserve_header_case(true)
+                        .title_case_headers(true)
                         .serve_connection(
                             TokioIo::new(client),
                             hyper::service::service_fn(|req| {
+                                let context = context.clone();
                                 let plugin_map = plugin_map.clone();
                                 async move {
                                     match (req.method(), req.uri().path()) {
@@ -63,11 +75,15 @@ impl PlatXDaemon {
                                         (&Method::POST, "/plugin") => {
                                             regist_handler(req, plugin_map.clone()).await
                                         }
-                                        (_method, _path) => todo!(),
+                                        (&Method::GET, "/context") => {
+                                            get_context_handler(context.clone()).await
+                                        }
+                                        (_method, _path) => notfound(),
                                     }
                                 }
                             }),
                         )
+                        .with_upgrades()
                         .await;
                 });
             }
@@ -201,6 +217,28 @@ async fn get_plugins_handler(
         .status(StatusCode::OK)
         .body(
             Full::new(value.into())
+                .map_err(|never| match never {})
+                .boxed(),
+        )
+        .unwrap();
+    Ok(response)
+}
+
+fn notfound() -> anyhow::Result<Response<BoxBody<Bytes, hyper::Error>>> {
+    let response = Response::builder()
+        .status(StatusCode::NOT_FOUND)
+        .body(Full::new("".into()).map_err(|never| match never {}).boxed())
+        .unwrap();
+    Ok(response)
+}
+
+async fn get_context_handler(
+    context: String,
+) -> anyhow::Result<Response<BoxBody<Bytes, hyper::Error>>> {
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .body(
+            Full::new(context.into())
                 .map_err(|never| match never {})
                 .boxed(),
         )

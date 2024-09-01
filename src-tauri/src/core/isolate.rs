@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, path::PathBuf};
 
 use crate::core::signature_box::SignatureBox;
 use anyhow::Context;
@@ -12,6 +9,7 @@ use ring::{
     rand,
     signature::{self, KeyPair},
 };
+use serde_json::json;
 
 pub struct Isolate {
     pub data_root: PathBuf,
@@ -34,6 +32,10 @@ impl Isolate {
         let private_key = BASE64_URL_SAFE.encode(pkcs8_bytes);
 
         let mut daemon = PlatXDaemon::new();
+        let context = json!({
+            "public_key": public_key,
+        });
+        daemon.with_context(serde_json::to_string(&context)?);
         let _ = daemon.start_server().await?;
 
         Ok(Isolate {
