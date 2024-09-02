@@ -59,9 +59,6 @@ impl PlatXDaemon {
                     let context = context.clone();
                     let plugin_map = plugin_map.clone();
                     let _ = http1::Builder::new()
-                        .keep_alive(true)
-                        .preserve_header_case(true)
-                        .title_case_headers(true)
                         .serve_connection(
                             TokioIo::new(client),
                             hyper::service::service_fn(|req| {
@@ -83,7 +80,6 @@ impl PlatXDaemon {
                                 }
                             }),
                         )
-                        .with_upgrades()
                         .await;
                 });
             }

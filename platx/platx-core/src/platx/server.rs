@@ -1,12 +1,8 @@
-use std::borrow::BorrowMut;
 use std::fs;
-use std::io::Read;
 use std::path::Path;
 use std::{path::PathBuf, sync::Arc};
 
-use anyhow::Context;
 use http_body_util::{BodyExt, Full};
-use hyper::body::Buf;
 use hyper::server::conn::http1;
 use hyper::{Method, Response};
 
@@ -95,9 +91,6 @@ pub async fn start_server(
                 let plugin_address = plugin_address.clone();
                 tokio::task::spawn(async move {
                     if let Err(_e) = http1::Builder::new()
-                        .keep_alive(true)
-                        .preserve_header_case(true)
-                        .title_case_headers(true)
                         .serve_connection(
                             TokioIo::new(client),
                             hyper::service::service_fn(move |req| {
@@ -110,22 +103,6 @@ pub async fn start_server(
                                     let method = req.method();
                                     let uri = req.uri();
                                     let path = uri.path();
-
-                                    let extern_daemon_str = "/extern/daemon";
-                                    if path.starts_with(extern_daemon_str) {
-                                        let addr = &req.uri().path_and_query().unwrap().as_str()
-                                            [extern_daemon_str.len()..];
-                                        let addr = Url::parse(
-                                            format!("{}{}", daemon_address, addr).as_str(),
-                                        )?;
-                                        match simple_proxy(req, addr).await {
-                                            Ok(value) => return Ok(value),
-                                            Err(e) => {
-                                                println!("proxy error {}", e);
-                                                return Err(e);
-                                            }
-                                        }
-                                    }
 
                                     match (method, path) {
                                         (&Method::GET, "/plugin.json") => {
@@ -145,7 +122,6 @@ pub async fn start_server(
                                 }
                             }),
                         )
-                        .with_upgrades()
                         .await
                     {}
                 });
@@ -179,44 +155,6 @@ fn send_plugin_json(
     Ok(res)
 }
 
-async fn simple_proxy(
-    req: hyper::Request<hyper::body::Incoming>,
-    addr: Url,
-) -> Result<hyper::Response<HyperOutgoingBody>> {
-    let method = req.method().clone();
-    let headers = req.headers().clone();
-    let whole_body = req
-        .collect()
-        .await
-        .context("get request body failed")?
-        .aggregate();
-    let mut out = String::new();
-    whole_body.reader().read_to_string(out.borrow_mut())?;
-
-    let client = reqwest::Client::new();
-    let request = client
-        .request(method, addr)
-        .body(out)
-        .headers(headers)
-        .build()
-        .context("build request failed")?;
-    let response = client.execute(request).await.context("request failed")?;
-    let response_header = response.headers().clone();
-
-    let text = response
-        .text()
-        .await
-        .context("parse response body failed")?;
-
-    let response_body = Full::new(text.as_bytes().to_vec().into())
-        .map_err(|never| match never {})
-        .boxed();
-    let mut res = Response::new(response_body);
-    *res.headers_mut() = response_header;
-
-    Ok(res)
-}
-
 struct PlatServer {
     pre: ProxyPre<PlatClientState>,
 }
@@ -229,8 +167,6 @@ impl PlatServer {
         plugin_address: String,
         daemon_address: String,
     ) -> Result<hyper::Response<HyperOutgoingBody>> {
-        // Create per-http-request state within a `Store` and prepare the
-        // initial resources  passed to the `handle` function.
         let mut store = Store::new(
             self.pre.engine(),
             PlatClientState::new(plugin_dir, plugin_address, daemon_address),
@@ -240,9 +176,6 @@ impl PlatServer {
         let out = store.data_mut().new_response_outparam(sender)?;
         let pre = self.pre.clone();
 
-        // Run the http request itself in a separate task so the task can
-        // optionally continue to execute beyond after the initial
-        // headers/response code are sent.
         let task = tokio::task::spawn(async move {
             let proxy = pre.instantiate_async(&mut store).await?;
 
