@@ -53,4 +53,38 @@ impl PluginDaemon {
 
         Ok(())
     }
+
+    pub fn sign(&self, base64_url_data_string: String) -> anyhow::Result<SignBox> {
+        let private_key_bytes = BASE64_URL_SAFE.decode(&self.private_key)?;
+        let key_pair = ring::signature::Ed25519KeyPair::from_pkcs8(&private_key_bytes)
+            .expect("create keypair failed");
+
+        let data_bytes = BASE64_URL_SAFE.decode(base64_url_data_string)?;
+        let sig = key_pair.sign(&data_bytes);
+
+        Ok(SignBox {
+            public_key: self.public_key.clone(),
+            signature: BASE64_URL_SAFE.encode(sig.as_ref()),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SignBox {
+    pub public_key: String,
+    pub signature: String,
+}
+
+impl SignBox {
+    pub fn verify(&self, base64_url_data_string: String) -> anyhow::Result<bool> {
+        let public_key = BASE64_URL_SAFE.decode(&self.public_key)?;
+        let data_bytes = BASE64_URL_SAFE.decode(base64_url_data_string)?;
+        let signature = BASE64_URL_SAFE.decode(&self.signature)?;
+        let public_key = signature::UnparsedPublicKey::new(&signature::ED25519, public_key);
+
+        match public_key.verify(&data_bytes, &signature) {
+            Ok(_) => Ok(true),
+            Err(_) => Ok(false),
+        }
+    }
 }

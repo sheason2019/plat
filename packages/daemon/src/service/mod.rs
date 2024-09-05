@@ -4,7 +4,7 @@ use std::{
 };
 
 use axum::{
-    extract::State,
+    extract::{MatchedPath, Request, State},
     http::StatusCode,
     routing::{get, post},
     Json, Router,
@@ -12,8 +12,11 @@ use axum::{
 use models::{PluginConfig, RegistedPlugin};
 use serde_json::{json, Value};
 use tokio::sync::mpsc::Sender;
+use typings::{RegistPluginRequest, SignRequest, VerifyRequest, VerifyResponse};
 
-use crate::daemon::PluginDaemon;
+mod typings;
+
+use crate::daemon::{PluginDaemon, SignBox};
 
 pub struct PluginDaemonService {
     pub plugin_daemon: PluginDaemon,
@@ -47,6 +50,8 @@ impl PluginDaemonService {
                 let app = Router::new()
                     .route("/", get(root_handler))
                     .route("/plugin", post(regist_plugin_handler))
+                    .route("/sign", post(sign_handler))
+                    .route("/verify", post(verify_handler))
                     .with_state((
                         service.plugin_daemon.clone(),
                         service.registed_plugins.clone(),
@@ -91,17 +96,11 @@ async fn regist_plugin_handler(
         PluginDaemon,
         Arc<Mutex<HashMap<String, models::RegistedPlugin>>>,
     )>,
-    Json(payload): Json<Value>,
+    Json(payload): Json<RegistPluginRequest>,
 ) -> &'static str {
-    let addr = payload
-        .as_object()
-        .expect("invalid input")
-        .get("addr")
-        .expect("parse addr faield")
-        .as_str()
-        .expect("parse addr as string failed");
+    let addr = payload.addr;
     let target =
-        url::Url::parse(addr).expect(format!("parse addr {} as url failed", &addr).as_ref());
+        url::Url::parse(&addr).expect(format!("parse addr {} as url failed", &addr).as_ref());
 
     let config = reqwest::get(target.join("plugin.json").unwrap())
         .await
@@ -122,4 +121,36 @@ async fn regist_plugin_handler(
         .insert(registed_plugin.config.name.clone(), registed_plugin);
 
     "OK"
+}
+
+async fn sign_handler(
+    State((daemon, _registed_plugins)): State<(
+        PluginDaemon,
+        Arc<Mutex<HashMap<String, models::RegistedPlugin>>>,
+    )>,
+    Json(payload): Json<SignRequest>,
+) -> (StatusCode, Json<SignBox>) {
+    let sign = daemon
+        .sign(payload.base64_url_data_string.clone())
+        .expect("create signature failed");
+
+    (StatusCode::OK, Json(sign))
+}
+
+async fn verify_handler(
+    State((_daemon, _registed_plugins)): State<(
+        PluginDaemon,
+        Arc<Mutex<HashMap<String, models::RegistedPlugin>>>,
+    )>,
+    Json(payload): Json<VerifyRequest>,
+) -> (StatusCode, Json<VerifyResponse>) {
+    let sign_box = SignBox {
+        public_key: payload.public_key,
+        signature: payload.signature,
+    };
+    let success = sign_box
+        .verify(payload.base64_url_data_string)
+        .expect("verify signature failed");
+
+    (StatusCode::OK, Json(VerifyResponse { success }))
 }
