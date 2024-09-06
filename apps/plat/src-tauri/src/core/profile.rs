@@ -8,23 +8,32 @@ use std::{
 use anyhow::Context;
 use daemon::{daemon::PluginDaemon, service::PluginDaemonService};
 use serde_json::{json, Value};
+use tauri::AppHandle;
+
+use crate::core::app_util::AppUtil;
+
+use super::app_util;
 
 pub struct Profile {
     pub data_root: PathBuf,
-    pub daemon_services: Vec<Arc<PluginDaemonService>>,
+    pub app_util: Arc<AppUtil>,
+    daemon_services: Vec<Arc<PluginDaemonService>>,
 }
 
 impl Profile {
-    pub async fn init(data_root: PathBuf) -> anyhow::Result<Self> {
+    pub async fn init(data_root: PathBuf, app_handle: AppHandle) -> anyhow::Result<Self> {
         let mut daemon_services: Vec<Arc<PluginDaemonService>> = Vec::new();
         let data_root = path::Path::new(&data_root);
         if !data_root.exists() {
             fs::create_dir_all(data_root).context("create data_root failed")?;
         }
 
+        let app_util = Arc::new(AppUtil::new(app_handle));
+
         let read_dir = std::fs::read_dir(data_root).context("read dir failed")?;
         for dir in read_dir {
             let dir = dir?;
+            let app_util = app_util.clone();
 
             let filename = dir.file_name().into_string().unwrap();
             if filename.starts_with(".") {
@@ -37,7 +46,16 @@ impl Profile {
             }
 
             let daemon = PluginDaemon::from_directory(dir.path())?;
-            let service = PluginDaemonService::new(daemon, 0).await?;
+            let service = PluginDaemonService::new(daemon, 0, move |req| {
+                let app_util = app_util.clone();
+                Box::pin(async move {
+                    let allow = app_util
+                        .confirm_sign_dialog(req.base64_url_data_string, "describe".to_string())
+                        .await;
+                    Ok(allow)
+                })
+            })
+            .await?;
 
             daemon_services.push(service);
         }
@@ -45,6 +63,7 @@ impl Profile {
         Ok(Profile {
             data_root: data_root.to_path_buf(),
             daemon_services,
+            app_util,
         })
     }
 
@@ -71,7 +90,17 @@ impl Profile {
         let daemon = PluginDaemon::generate(self.data_root.clone())?;
         let public_key = daemon.public_key.clone();
 
-        let service = PluginDaemonService::new(daemon, 0).await?;
+        let app_util = self.app_util.clone();
+        let service = PluginDaemonService::new(daemon, 0, move |req| {
+            let app_util = app_util.clone();
+            Box::pin(async move {
+                let allow = app_util
+                    .confirm_sign_dialog(req.base64_url_data_string, "describe".to_string())
+                    .await;
+                Ok(allow)
+            })
+        })
+        .await?;
         self.daemon_services.push(service);
 
         Ok(public_key)

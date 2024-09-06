@@ -1,18 +1,24 @@
 use std::{
     collections::HashMap,
+    future::Future,
+    ops::Deref,
     sync::{Arc, Mutex},
 };
 
 use axum::{
-    extract::{MatchedPath, Request, State},
+    extract::State,
     http::StatusCode,
     routing::{get, post},
     Json, Router,
 };
+use futures::future::BoxFuture;
 use models::{PluginConfig, RegistedPlugin};
 use serde_json::{json, Value};
 use tokio::sync::mpsc::Sender;
-use typings::{RegistPluginRequest, SignRequest, VerifyRequest, VerifyResponse};
+use typings::{
+    ConfirmSignatureHandler, RegistPluginRequest, ServiceState, SignRequest, VerifyRequest,
+    VerifyResponse,
+};
 
 mod typings;
 
@@ -24,11 +30,20 @@ pub struct PluginDaemonService {
     pub registed_plugins: Arc<Mutex<HashMap<String, models::RegistedPlugin>>>,
 
     service_stop_sender: Sender<()>,
-    confirm_signature_handler: Option<fn() -> bool>,
+    confirm_signature_handler: Arc<ConfirmSignatureHandler>,
 }
 
 impl PluginDaemonService {
-    pub async fn new(daemon: PluginDaemon, port: u16) -> anyhow::Result<Arc<Self>> {
+    pub async fn new(
+        daemon: PluginDaemon,
+        port: u16,
+        confirm_signature_handler: impl Fn(SignRequest) -> BoxFuture<'static, anyhow::Result<bool>>
+            + Send
+            + Sync
+            + 'static,
+    ) -> anyhow::Result<Arc<Self>> {
+        let confirm_signature_handler = Arc::new(confirm_signature_handler);
+
         let tcp_listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", port)).await?;
         let addr = format!("http://{}", tcp_listener.local_addr()?.to_string());
 
@@ -40,7 +55,7 @@ impl PluginDaemonService {
             registed_plugins: Arc::new(Mutex::new(HashMap::new())),
 
             service_stop_sender: tx.clone(),
-            confirm_signature_handler: None,
+            confirm_signature_handler,
         };
         let service = Arc::new(service);
 
@@ -52,10 +67,11 @@ impl PluginDaemonService {
                     .route("/plugin", post(regist_plugin_handler))
                     .route("/sign", post(sign_handler))
                     .route("/verify", post(verify_handler))
-                    .with_state((
-                        service.plugin_daemon.clone(),
-                        service.registed_plugins.clone(),
-                    ));
+                    .with_state(ServiceState {
+                        daemon: service.plugin_daemon.clone(),
+                        registed_plugins: service.registed_plugins.clone(),
+                        confirm_signature_handler: service.confirm_signature_handler.clone(),
+                    });
                 axum::serve(tcp_listener, app)
                     .with_graceful_shutdown(async move {
                         rx.recv().await;
@@ -74,28 +90,20 @@ impl PluginDaemonService {
     }
 }
 
-async fn root_handler(
-    State((daemon, registed_plugins)): State<(
-        PluginDaemon,
-        Arc<Mutex<HashMap<String, models::RegistedPlugin>>>,
-    )>,
-) -> (StatusCode, Json<Value>) {
-    let plugins = registed_plugins.lock().unwrap().clone();
+async fn root_handler(State(state): State<ServiceState>) -> (StatusCode, Json<Value>) {
+    let plugins = state.registed_plugins.lock().unwrap();
 
     let out = json!({
         "daemon": {
-            "public_key": &daemon.public_key,
+            "public_key": &state.daemon.public_key,
         },
-        "plugins": plugins,
+        "plugins": plugins.deref(),
     });
     (StatusCode::OK, Json(out))
 }
 
 async fn regist_plugin_handler(
-    State((_daemon, registed_plugins)): State<(
-        PluginDaemon,
-        Arc<Mutex<HashMap<String, models::RegistedPlugin>>>,
-    )>,
+    State(state): State<ServiceState>,
     Json(payload): Json<RegistPluginRequest>,
 ) -> &'static str {
     let addr = payload.addr;
@@ -115,7 +123,8 @@ async fn regist_plugin_handler(
         config,
     };
 
-    registed_plugins
+    state
+        .registed_plugins
         .lock()
         .unwrap()
         .insert(registed_plugin.config.name.clone(), registed_plugin);
@@ -124,26 +133,39 @@ async fn regist_plugin_handler(
 }
 
 async fn sign_handler(
-    State((daemon, _registed_plugins)): State<(
-        PluginDaemon,
-        Arc<Mutex<HashMap<String, models::RegistedPlugin>>>,
-    )>,
+    State(state): State<ServiceState>,
     Json(payload): Json<SignRequest>,
-) -> (StatusCode, Json<SignBox>) {
-    let sign = daemon
+) -> Result<Json<SignBox>, (StatusCode, String)> {
+    // TODO: 判断来源
+
+    let handler = state.confirm_signature_handler.as_ref();
+    let confirm_result = match handler(payload.clone()).await {
+        Ok(value) => value,
+        Err(e) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("执行签名验证逻辑失败，原因：{}", e),
+            ))
+        }
+    };
+    if !confirm_result {
+        return Err((StatusCode::BAD_REQUEST, format!("签名验证被拒绝")));
+    }
+
+    let sign = state
+        .daemon
         .sign(payload.base64_url_data_string.clone())
         .expect("create signature failed");
 
-    (StatusCode::OK, Json(sign))
+    Ok(Json(sign))
 }
 
 async fn verify_handler(
-    State((_daemon, _registed_plugins)): State<(
-        PluginDaemon,
-        Arc<Mutex<HashMap<String, models::RegistedPlugin>>>,
-    )>,
+    State(_state): State<ServiceState>,
     Json(payload): Json<VerifyRequest>,
 ) -> (StatusCode, Json<VerifyResponse>) {
+    // TODO:判断来源
+
     let sign_box = SignBox {
         public_key: payload.public_key,
         signature: payload.signature,

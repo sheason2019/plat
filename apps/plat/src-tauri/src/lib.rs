@@ -41,13 +41,13 @@ async fn install_plugin(
     public_key: String,
     plugin_file_path: String,
 ) -> Result<(), ()> {
-    let mut profile = state.lock().await;
+    // let mut profile = state.lock().await;
 
-    let daemon = profile
-        .daemon_services
-        .iter_mut()
-        .find(|i| i.plugin_daemon.public_key == public_key)
-        .unwrap();
+    // let daemon = profile
+    //     .daemon_services
+    //     .iter_mut()
+    //     .find(|i| i.plugin_daemon.public_key == public_key)
+    //     .unwrap();
 
     // daemon
     //     .install_plugin(std::path::Path::new(plugin_file_path.as_str()).to_path_buf())
@@ -65,13 +65,13 @@ async fn delete_plugin(
     public_key: String,
     plugin_name: String,
 ) -> Result<(), ()> {
-    let mut profile = state.lock().await;
+    // let mut profile = state.lock().await;
 
-    let isolate = profile
-        .daemon_services
-        .iter_mut()
-        .find(|i| i.plugin_daemon.public_key == public_key)
-        .unwrap();
+    // let isolate = profile
+    //     .daemon_services
+    //     .iter_mut()
+    //     .find(|i| i.plugin_daemon.public_key == public_key)
+    //     .unwrap();
 
     // isolate
     //     .uninstall_plugin(plugin_name)
@@ -81,6 +81,21 @@ async fn delete_plugin(
     // Ok(())
 
     todo!()
+}
+
+#[tauri::command]
+async fn channel(state: PlatState<'_>, id: String, data: String) -> Result<(), ()> {
+    state
+        .lock()
+        .await
+        .app_util
+        .complete_channel(
+            id,
+            serde_json::from_str(data.as_str()).expect("解析 JSON 数据失败"),
+        )
+        .await;
+
+    Ok(())
 }
 
 fn setup<'a>(app: &'a mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
@@ -103,7 +118,7 @@ fn setup<'a>(app: &'a mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
         info!("日志模块已加载");
 
         info!("初始化用户信息");
-        let profile = Profile::init(data_root.clone())
+        let profile = Profile::init(data_root.clone(), handle.clone())
             .await
             .expect("init profile failed");
         handle.manage(Mutex::new(profile));
@@ -125,6 +140,7 @@ pub fn run() {
             delete_isolate,
             install_plugin,
             delete_plugin,
+            channel,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
