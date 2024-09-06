@@ -1,0 +1,16 @@
+[package]
+name = "plugin"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow.workspace = true
+hyper = "1.4.1"
+models = { path = "../models" }
+tokio.workspace = true
+reqwest.workspace = true
+wasmtime = "24.0.0"
+wasmtime-wasi = "24.0.0"
+wasmtime-wasi-http = "24.0.0"
+http-body-util = "0.1.2"
+url = "2.5.2"

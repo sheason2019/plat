@@ -1,5 +1,0 @@
-package plat:plugin;
-
-world plat {
-    export action: func(ty: string, payload: string) -> string;
-}
