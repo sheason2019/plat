@@ -3318,7 +3318,10 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
+ "bundler",
  "daemon",
+ "models",
+ "plugin",
  "reqwest",
  "ring",
  "serde",
@@ -3331,6 +3334,7 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+ "urlencoding",
  "uuid",
 ]
 

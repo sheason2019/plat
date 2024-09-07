@@ -1,5 +1,5 @@
 use core::profile::Profile;
-use std::fs;
+use std::{fs, path::Path};
 use tokio::sync::Mutex;
 
 use tauri::{Manager, State};
@@ -11,15 +11,14 @@ type PlatState<'a> = State<'a, Mutex<Profile>>;
 
 #[tauri::command]
 async fn get_profile(state: PlatState<'_>) -> Result<String, ()> {
-    let profile_json = state.lock().await.to_json_string();
-    Ok(profile_json)
+    Ok(state.lock().await.to_json_string())
 }
 
 #[tauri::command]
-async fn create_isolate(state: PlatState<'_>, template: String) -> Result<String, ()> {
+async fn create_isolate(state: PlatState<'_>, _template: String) -> Result<String, ()> {
     let mut profile = state.lock().await;
     Ok(profile
-        .generate_isolate()
+        .generate_daemon_service()
         .await
         .expect("generate isolate failed"))
 }
@@ -29,7 +28,7 @@ async fn delete_isolate(state: PlatState<'_>, public_key: String) -> Result<(), 
     let mut profile = state.lock().await;
 
     profile
-        .delete_isolate(public_key)
+        .delete_daemon_service(public_key)
         .await
         .expect("delete isolate failed");
     Ok(())
@@ -41,22 +40,31 @@ async fn install_plugin(
     public_key: String,
     plugin_file_path: String,
 ) -> Result<(), ()> {
-    // let mut profile = state.lock().await;
+    let app_util = state.lock().await.app_util.clone();
 
-    // let daemon = profile
-    //     .daemon_services
-    //     .iter_mut()
-    //     .find(|i| i.plugin_daemon.public_key == public_key)
-    //     .unwrap();
+    let plugin_file_path = Path::new(&plugin_file_path);
+    let plugin_directory = app_util
+        .confirm_install_plugin_dialog(public_key.clone(), plugin_file_path.to_path_buf())
+        .await
+        .expect("parse plugin config failed");
 
-    // daemon
-    //     .install_plugin(std::path::Path::new(plugin_file_path.as_str()).to_path_buf())
-    //     .await
-    //     .expect("install plugin failed");
+    if plugin_directory.is_none() {
+        return Ok(());
+    }
 
-    // Ok(())
+    let plugin_directory = match plugin_directory {
+        Some(value) => value,
+        None => return Ok(()),
+    };
 
-    todo!()
+    state
+        .lock()
+        .await
+        .try_start_plugin_from_dir(&public_key, plugin_directory)
+        .await
+        .expect("remove plugin failed");
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -65,22 +73,14 @@ async fn delete_plugin(
     public_key: String,
     plugin_name: String,
 ) -> Result<(), ()> {
-    // let mut profile = state.lock().await;
+    state
+        .lock()
+        .await
+        .remove_plugin(&public_key, plugin_name)
+        .await
+        .expect("remove plugin failed");
 
-    // let isolate = profile
-    //     .daemon_services
-    //     .iter_mut()
-    //     .find(|i| i.plugin_daemon.public_key == public_key)
-    //     .unwrap();
-
-    // isolate
-    //     .uninstall_plugin(plugin_name)
-    //     .await
-    //     .expect("remove plugin failed");
-
-    // Ok(())
-
-    todo!()
+    Ok(())
 }
 
 #[tauri::command]
@@ -89,6 +89,7 @@ async fn channel(state: PlatState<'_>, id: String, data: String) -> Result<(), (
         .lock()
         .await
         .app_util
+        .clone()
         .complete_channel(
             id,
             serde_json::from_str(data.as_str()).expect("解析 JSON 数据失败"),

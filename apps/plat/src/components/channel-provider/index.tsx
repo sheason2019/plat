@@ -2,6 +2,9 @@ import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { PropsWithChildren, useEffect } from "react";
 import { useSetRecoilState } from "recoil";
 import ConfirmSignature, { confirmSignatureAtom } from "./confirm-signature";
+import ConfirmInstallPlugin, {
+  confirmInstallPluginAtom,
+} from "./confirm-install-plugin";
 
 interface ChannelData {
   id: string;
@@ -11,6 +14,9 @@ interface ChannelData {
 
 export default function ChannelProvider(props: PropsWithChildren) {
   const setConfirmSignatureState = useSetRecoilState(confirmSignatureAtom);
+  const setConfirmInstallPluginState = useSetRecoilState(
+    confirmInstallPluginAtom
+  );
 
   useEffect(() => {
     let close = false;
@@ -20,6 +26,12 @@ export default function ChannelProvider(props: PropsWithChildren) {
       switch (e.payload.type) {
         case "confirm-sign":
           setConfirmSignatureState({
+            id: e.payload.id,
+            data: e.payload.data,
+          });
+          break;
+        case "confirm-install-plugin":
+          setConfirmInstallPluginState({
             id: e.payload.id,
             data: e.payload.data,
           });
@@ -44,6 +56,7 @@ export default function ChannelProvider(props: PropsWithChildren) {
   return (
     <>
       <ConfirmSignature />
+      <ConfirmInstallPlugin />
       {props.children}
     </>
   );

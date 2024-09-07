@@ -16,7 +16,7 @@ export default function InstallPluginButton() {
 
   const handleInstallFromFile = async () => {
     const file = await open({
-      filters: [{ name: "plat-extension", extensions: ["platx"] }],
+      filters: [{ name: "plat-extension", extensions: ["plat"] }],
     });
 
     await invoke("install_plugin", {

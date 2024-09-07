@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs::{self},
     ops::Deref,
     path::{self, PathBuf},
@@ -7,72 +8,111 @@ use std::{
 
 use anyhow::Context;
 use daemon::{daemon::PluginDaemon, service::PluginDaemonService};
+use plugin::PluginService;
 use serde_json::{json, Value};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 use crate::core::app_util::AppUtil;
-
-use super::app_util;
 
 pub struct Profile {
     pub data_root: PathBuf,
     pub app_util: Arc<AppUtil>,
-    daemon_services: Vec<Arc<PluginDaemonService>>,
+    pub daemon_service_map: HashMap<String, Arc<PluginDaemonService>>,
+    plugin_service_map: HashMap<String, PluginService>,
 }
 
 impl Profile {
     pub async fn init(data_root: PathBuf, app_handle: AppHandle) -> anyhow::Result<Self> {
-        let mut daemon_services: Vec<Arc<PluginDaemonService>> = Vec::new();
+        let mut profile = Profile {
+            data_root: data_root.to_path_buf(),
+            daemon_service_map: HashMap::new(),
+            plugin_service_map: HashMap::new(),
+            app_util: Arc::new(AppUtil::new(app_handle)),
+        };
+
         let data_root = path::Path::new(&data_root);
         if !data_root.exists() {
             fs::create_dir_all(data_root).context("create data_root failed")?;
         }
 
-        let app_util = Arc::new(AppUtil::new(app_handle));
+        let data_root_content = std::fs::read_dir(data_root).context("read dir failed")?;
+        for daemon_directory in data_root_content {
+            let daemon_directory = daemon_directory?;
 
-        let read_dir = std::fs::read_dir(data_root).context("read dir failed")?;
-        for dir in read_dir {
-            let dir = dir?;
-            let app_util = app_util.clone();
-
-            let filename = dir.file_name().into_string().unwrap();
+            let filename = daemon_directory.file_name().into_string().unwrap();
             if filename.starts_with(".") {
                 continue;
             }
 
-            let daemon_file = dir.path().join("daemon.json");
+            let daemon_file = daemon_directory.path().join("daemon.json");
             if !daemon_file.exists() {
                 continue;
             }
 
-            let daemon = PluginDaemon::from_directory(dir.path())?;
-            let service = PluginDaemonService::new(daemon, 0, move |req| {
+            let app_util = profile.app_util.clone();
+            let daemon = PluginDaemon::from_directory(daemon_directory.path())?;
+            let public_key = daemon.public_key.clone();
+            let daemon_service = PluginDaemonService::new(daemon, 0, move |req| {
                 let app_util = app_util.clone();
+                let public_key = public_key.clone();
                 Box::pin(async move {
                     let allow = app_util
-                        .confirm_sign_dialog(req.base64_url_data_string, "describe".to_string())
+                        .confirm_sign_dialog(
+                            req.base64_url_data_string,
+                            "describe".to_string(),
+                            public_key,
+                        )
                         .await;
                     Ok(allow)
                 })
             })
             .await?;
 
-            daemon_services.push(service);
+            match profile.daemon_service_map.insert(
+                daemon_service.plugin_daemon.public_key.clone(),
+                daemon_service.clone(),
+            ) {
+                None => (),
+                Some(value) => {
+                    value.stop().await?;
+                }
+            }
+
+            let plugins_directory = daemon_directory.path().join("plugins");
+            if !plugins_directory.exists() {
+                fs::create_dir_all(&plugins_directory)?;
+            }
+
+            for plugins_directory_content in fs::read_dir(plugins_directory)? {
+                let plugins_directory_content = plugins_directory_content?;
+                if plugins_directory_content
+                    .file_name()
+                    .to_str()
+                    .unwrap()
+                    .to_string()
+                    .starts_with(".")
+                {
+                    continue;
+                }
+
+                profile
+                    .try_start_plugin_from_dir(
+                        &daemon_service.plugin_daemon.public_key,
+                        plugins_directory_content.path(),
+                    )
+                    .await?;
+            }
         }
 
-        Ok(Profile {
-            data_root: data_root.to_path_buf(),
-            daemon_services,
-            app_util,
-        })
+        Ok(profile)
     }
 
     pub fn to_json_string(&self) -> String {
         let mut daemons: Vec<Value> = Vec::new();
-        for daemon in &self.daemon_services {
+        for (public_key, daemon) in &self.daemon_service_map {
             let plugin_map = daemon.registed_plugins.lock().unwrap();
             let daemon_json = json!({
-                "public_key": daemon.plugin_daemon.public_key,
+                "public_key": public_key,
                 "daemon_address": daemon.addr,
                 "registed_plugins": plugin_map.deref(),
             });
@@ -86,39 +126,105 @@ impl Profile {
         serde_json::to_string(&value).unwrap()
     }
 
-    pub async fn generate_isolate(&mut self) -> anyhow::Result<String> {
+    pub async fn generate_daemon_service(&mut self) -> anyhow::Result<String> {
         let daemon = PluginDaemon::generate(self.data_root.clone())?;
         let public_key = daemon.public_key.clone();
+        let result = Ok(public_key.clone());
 
         let app_util = self.app_util.clone();
         let service = PluginDaemonService::new(daemon, 0, move |req| {
             let app_util = app_util.clone();
+            let public_key = public_key.clone();
             Box::pin(async move {
                 let allow = app_util
-                    .confirm_sign_dialog(req.base64_url_data_string, "describe".to_string())
+                    .confirm_sign_dialog(
+                        req.base64_url_data_string,
+                        "describe".to_string(),
+                        public_key,
+                    )
                     .await;
                 Ok(allow)
             })
         })
         .await?;
-        self.daemon_services.push(service);
+        self.daemon_service_map
+            .insert(service.plugin_daemon.public_key.clone(), service)
+            .unwrap();
 
-        Ok(public_key)
+        result
     }
 
-    pub async fn delete_isolate(&mut self, public_key: String) -> anyhow::Result<()> {
+    pub async fn delete_daemon_service(&mut self, public_key: String) -> anyhow::Result<()> {
         // 在内存中删除 isolate
-        let position = self
-            .daemon_services
-            .iter()
-            .position(|item| item.plugin_daemon.public_key == public_key)
-            .expect("cannot find position");
-        let item = self.daemon_services.remove(position);
+        let item = self.daemon_service_map.get(&public_key).unwrap();
         item.stop().await?;
 
         // 在文件系统中删除 isolate
         let p = self.data_root.join(public_key);
         fs::remove_dir_all(p)?;
+
+        Ok(())
+    }
+
+    pub async fn try_start_plugin_from_dir(
+        &mut self,
+        public_key: &String,
+        plugin_directory: PathBuf,
+    ) -> anyhow::Result<()> {
+        let daemon_service = self.daemon_service_map.get(public_key).unwrap();
+        let service =
+            plugin::PluginService::new(plugin_directory, daemon_service.addr.clone(), None, 0)
+                .await?;
+        match self.plugin_service_map.insert(
+            format!(
+                "{}.{}",
+                &daemon_service.plugin_daemon.public_key, &service.registed_plugin.config.name
+            ),
+            service,
+        ) {
+            None => (),
+            Some(value) => {
+                value.stop().await;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn remove_plugin(
+        &mut self,
+        public_key: &String,
+        plugin_name: String,
+    ) -> anyhow::Result<()> {
+        match self
+            .plugin_service_map
+            .remove(&format!("{}.{}", public_key, &plugin_name))
+        {
+            Some(service) => {
+                service.stop().await;
+            }
+            None => (),
+        }
+
+        self.daemon_service_map
+            .get(public_key)
+            .unwrap()
+            .registed_plugins
+            .lock()
+            .unwrap()
+            .remove(&plugin_name);
+
+        let plugin_root_directory = self
+            .app_util
+            .app_handle
+            .path()
+            .app_data_dir()?
+            .join(public_key.clone())
+            .join("plugins")
+            .join(urlencoding::encode(&plugin_name).to_string());
+        if plugin_root_directory.exists() {
+            fs::remove_dir_all(plugin_root_directory)?;
+        }
 
         Ok(())
     }

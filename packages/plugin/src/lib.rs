@@ -20,7 +20,7 @@ use wasmtime_wasi_http::io::TokioIo;
 mod wasi;
 
 pub struct PluginService {
-    registed_plugin: models::RegistedPlugin,
+    pub registed_plugin: models::RegistedPlugin,
 
     stop_server_sender: Sender<()>,
     service_handler: JoinHandle<()>,
@@ -28,12 +28,13 @@ pub struct PluginService {
 
 impl PluginService {
     pub async fn new(
-        plugin_config: models::PluginConfig,
         plugin_root: PathBuf,
         daemon_address: String,
         regist_address: Option<String>,
         port: u16,
     ) -> anyhow::Result<Self> {
+        let plugin_config = models::PluginConfig::from_file(plugin_root.join("plugin.json"))?;
+
         let mut config = Config::new();
         config.async_support(true);
         let engine = Engine::new(&config)?;

@@ -1,6 +1,5 @@
 use bundler::{tarer::Tarer, untarer::Untarer};
 use clap::{Parser, Subcommand};
-use models::PluginConfig;
 use plugin::PluginService;
 
 #[derive(Parser)]
@@ -56,9 +55,7 @@ impl Cli {
                     None => 0,
                 };
                 // 启动 Plugin
-                let plugin = PluginConfig::from_file(path.join("plugin.json"))?;
                 let service = PluginService::new(
-                    plugin,
                     path.clone(),
                     daemon_address.clone(),
                     regist_address.clone(),

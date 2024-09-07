@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::PathBuf;
 
 use wasmtime::component::ResourceTable;
@@ -70,17 +71,24 @@ pub struct PlatClientState {
 
 impl PlatClientState {
     pub fn new(plugin_root: PathBuf, daemon_address: String) -> Self {
+        let storage_path = plugin_root.join("storage");
+        if !storage_path.exists() {
+            fs::create_dir_all(&storage_path).unwrap();
+        }
+
+        let assets_path = plugin_root.join("assets");
+        if !assets_path.exists() {
+            fs::create_dir_all(&assets_path).unwrap();
+        }
+
         PlatClientState {
             table: ResourceTable::new(),
             wasi: WasiCtxBuilder::new()
                 .inherit_stdio()
                 .envs(&[("daemon_address", &daemon_address)])
-                .preopened_dir(
-                    plugin_root.join("storage"),
-                    "/storage",
-                    DirPerms::all(),
-                    FilePerms::all(),
-                )
+                .preopened_dir(storage_path, "/storage", DirPerms::all(), FilePerms::all())
+                .unwrap()
+                .preopened_dir(assets_path, "/assets", DirPerms::all(), FilePerms::all())
                 .unwrap()
                 .build(),
             http: WasiHttpCtx::new(),

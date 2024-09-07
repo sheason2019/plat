@@ -17,16 +17,25 @@ tauri-build = { version = "2.0.0-rc.6", features = [] }
 [dependencies]
 tauri = { version = "2.0.0-rc.6", features = [] }
 tauri-plugin-shell = "2.0.0-rc.2"
-tokio = { workspace = true }
+tauri-plugin-dialog = "2.0.0-rc.2"
 ring = { version = "0.17.8" }
 base64 = { version = "0.22.1" }
-anyhow = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
-tauri-plugin-dialog = "2.0.0-rc.2"
-reqwest.workspace = true
 tracing = "0.1.40"
 tracing-appender = "0.2.3"
 tracing-subscriber = "0.3.18"
-daemon = { path = "../../../packages/daemon" }
-uuid = { version = "1.10.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
+uuid = { version = "1.10.0", features = [
+  "v4",
+  "fast-rng",
+  "macro-diagnostics",
+] }
+
+tokio.workspace = true
+anyhow.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+reqwest.workspace = true
+daemon.path = "../../../packages/daemon"
+bundler.path = "../../../packages/bundler"
+models.path = "../../../packages/models"
+plugin.path = "../../../packages/plugin"
+urlencoding = "2.1.3"
