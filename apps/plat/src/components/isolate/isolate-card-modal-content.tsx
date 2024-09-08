@@ -29,12 +29,7 @@ export default function IsolateCardModalContent({ isolate, onClose }: Props) {
       <ModalFooter>
         <DeleteIsolateButton publicKey={isolate.public_key} onClose={onClose} />
         <div className="flex-1" />
-        <Button
-          color="primary"
-          as={Link}
-          to="/isolate/$pubkey"
-          params={{ pubkey: isolate.public_key }}
-        >
+        <Button color="primary" as={Link} to={"/isolate/" + isolate.public_key}>
           进入账号主页面
         </Button>
       </ModalFooter>

@@ -7,8 +7,8 @@ import {
 } from "@nextui-org/react";
 import { open } from "@tauri-apps/plugin-dialog";
 import useIsolate from "../../../hooks/core/use-isolate";
-import { invoke } from "@tauri-apps/api/core";
 import useProfile from "../../../hooks/core/use-profile";
+import { invoke } from "@tauri-apps/api/core";
 
 export default function InstallPluginButton() {
   const { mutate } = useProfile();
@@ -19,9 +19,13 @@ export default function InstallPluginButton() {
       filters: [{ name: "plat-extension", extensions: ["plat"] }],
     });
 
+    if (!file) {
+      return;
+    }
+
     await invoke("install_plugin", {
       publicKey: isolate?.public_key,
-      pluginFilePath: file?.path,
+      pluginFilePath: file,
     });
 
     mutate();

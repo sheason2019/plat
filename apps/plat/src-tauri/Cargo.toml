@@ -12,12 +12,12 @@ name = "plat_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.0.0-rc.6", features = [] }
+tauri-build = { version = "2.0.0-rc.9", features = [] }
 
 [dependencies]
-tauri = { version = "2.0.0-rc.6", features = [] }
-tauri-plugin-shell = "2.0.0-rc.2"
-tauri-plugin-dialog = "2.0.0-rc.2"
+tauri = { version = "2.0.0-rc.10", features = [] }
+tauri-plugin-shell = "2.0.0-rc.3"
+tauri-plugin-dialog = "2.0.0-rc.5"
 ring = { version = "0.17.8" }
 base64 = { version = "0.22.1" }
 tracing = "0.1.40"

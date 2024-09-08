@@ -129,9 +129,13 @@ impl AppUtil {
 
         // 用户同意则将插件移动到插件文件夹
         let plugin_directory =
-            plugin_root_directory.join(urlencoding::encode(&plugin.name).to_string());
+            plugin_root_directory.join(&urlencoding::encode(&plugin.name).to_string());
         if !plugin_directory.exists() {
             fs::create_dir_all(plugin_directory.clone())?;
+        }
+        let storage_dir = plugin_directory.join("storage");
+        if storage_dir.exists() {
+            fs::rename(storage_dir, plugin_cache_directory.join("storage"))?;
         }
         fs::remove_dir_all(plugin_directory.clone())?;
         fs::rename(plugin_cache_directory, &plugin_directory)?;

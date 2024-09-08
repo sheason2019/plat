@@ -14,7 +14,7 @@
     "@fontsource-variable/noto-sans-sc": "^5.0.7",
     "@nextui-org/react": "^2.4.6",
     "@tanstack/react-router": "^1.46.8",
-    "@tauri-apps/api": ">=2.0.0-rc.0",
+    "@tauri-apps/api": "2.0.0-rc.4",
     "@tauri-apps/plugin-dialog": "^2.0.0-rc.0",
     "@tauri-apps/plugin-shell": ">=2.0.0-rc.0",
     "clsx": "^2.1.1",
@@ -27,7 +27,7 @@
   "devDependencies": {
     "@tanstack/router-devtools": "^1.46.9",
     "@tanstack/router-plugin": "^1.47.0",
-    "@tauri-apps/cli": "^2.0.0-rc.7",
+    "@tauri-apps/cli": "2.0.0-rc.12",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
     "@vitejs/plugin-react": "^4.2.1",
