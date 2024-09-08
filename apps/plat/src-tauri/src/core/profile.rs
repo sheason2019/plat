@@ -107,10 +107,10 @@ impl Profile {
         Ok(profile)
     }
 
-    pub fn to_json_string(&self) -> String {
+    pub async fn to_json_string(&self) -> String {
         let mut daemons: Vec<Value> = Vec::new();
         for (public_key, daemon) in &self.daemon_service_map {
-            let plugin_map = daemon.registed_plugins.lock().unwrap();
+            let plugin_map = daemon.registed_plugins.lock().await;
             let daemon_json = json!({
                 "public_key": public_key,
                 "daemon_address": daemon.addr,
@@ -211,7 +211,7 @@ impl Profile {
             .unwrap()
             .registed_plugins
             .lock()
-            .unwrap()
+            .await
             .remove(&plugin_name);
 
         let plugin_root_directory = self

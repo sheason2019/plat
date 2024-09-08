@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    ops::Deref,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, ops::Deref, sync::Arc, time::Duration};
 
 use axum::{
     extract::State,
@@ -13,7 +9,7 @@ use axum::{
 use futures::future::BoxFuture;
 use models::{PluginConfig, RegistedPlugin};
 use serde_json::{json, Value};
-use tokio::sync::mpsc::Sender;
+use tokio::sync::{mpsc::Sender, Mutex};
 use typings::{
     ConfirmSignatureHandler, RegistPluginRequest, ServiceState, SignRequest, VerifyRequest,
     VerifyResponse,
@@ -61,6 +57,16 @@ impl PluginDaemonService {
         tokio::task::spawn({
             let service = service.clone();
             async move {
+                tokio::task::spawn({
+                    let service = service.clone();
+                    async move {
+                        loop {
+                            tokio::time::sleep(Duration::from_secs(5)).await;
+                            service.health_check().await;
+                        }
+                    }
+                });
+
                 let app = Router::new()
                     .route("/", get(root_handler))
                     .route("/plugin", post(regist_plugin_handler))
@@ -87,16 +93,46 @@ impl PluginDaemonService {
         self.service_stop_sender.send(()).await?;
         Ok(())
     }
+
+    async fn health_check(&self) {
+        let mut rm_vec: Vec<String> = Vec::new();
+
+        for (key, value) in self.registed_plugins.lock().await.iter() {
+            let plugin_url = match url::Url::parse(&value.addr).unwrap().join("plugin.json") {
+                Ok(value) => value,
+                Err(_) => {
+                    rm_vec.push(key.clone());
+                    continue;
+                }
+            };
+            let req = match reqwest::get(plugin_url).await {
+                Ok(value) => value,
+                Err(_) => {
+                    rm_vec.push(key.clone());
+                    continue;
+                }
+            };
+
+            match req.error_for_status() {
+                Ok(_) => (),
+                Err(_) => {
+                    rm_vec.push(key.clone());
+                }
+            }
+        }
+
+        for rm_key in rm_vec {
+            self.registed_plugins.lock().await.remove(&rm_key);
+        }
+    }
 }
 
 async fn root_handler(State(state): State<ServiceState>) -> (StatusCode, Json<Value>) {
-    let plugins = state.registed_plugins.lock().unwrap();
-
     let out = json!({
         "daemon": {
             "public_key": &state.daemon.public_key,
         },
-        "plugins": plugins.deref(),
+        "plugins": state.registed_plugins.lock().await.deref(),
     });
     (StatusCode::OK, Json(out))
 }
@@ -104,7 +140,7 @@ async fn root_handler(State(state): State<ServiceState>) -> (StatusCode, Json<Va
 async fn regist_plugin_handler(
     State(state): State<ServiceState>,
     Json(payload): Json<RegistPluginRequest>,
-) -> &'static str {
+) -> (StatusCode, String) {
     let addr = payload.addr;
     let target =
         url::Url::parse(&addr).expect(format!("parse addr {} as url failed", &addr).as_ref());
@@ -115,7 +151,21 @@ async fn regist_plugin_handler(
         .json::<PluginConfig>()
         .await
         .expect("json deserilize failed");
-    println!("plugin {} registed", config.name);
+
+    let config_name = config.name.clone();
+
+    // 如果 plugin 已存在则拒绝注册
+    if state
+        .registed_plugins
+        .lock()
+        .await
+        .contains_key(&config_name)
+    {
+        return (
+            StatusCode::CONFLICT,
+            "已存在同名称的 Plugin，注册请求被拒绝".to_string(),
+        );
+    }
 
     let registed_plugin = RegistedPlugin {
         addr: addr.to_string(),
@@ -125,10 +175,10 @@ async fn regist_plugin_handler(
     state
         .registed_plugins
         .lock()
-        .unwrap()
-        .insert(registed_plugin.config.name.clone(), registed_plugin);
+        .await
+        .insert(config_name.clone(), registed_plugin);
 
-    "OK"
+    (StatusCode::OK, "Plugin 注册成功".to_string())
 }
 
 async fn sign_handler(

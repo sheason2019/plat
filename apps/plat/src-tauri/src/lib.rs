@@ -11,7 +11,7 @@ type PlatState<'a> = State<'a, Mutex<Profile>>;
 
 #[tauri::command]
 async fn get_profile(state: PlatState<'_>) -> Result<String, ()> {
-    Ok(state.lock().await.to_json_string())
+    Ok(state.lock().await.to_json_string().await)
 }
 
 #[tauri::command]

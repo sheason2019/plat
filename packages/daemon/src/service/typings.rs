@@ -1,10 +1,8 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, sync::Arc};
 
 use futures::future::BoxFuture;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 
 use crate::daemon::PluginDaemon;
 
