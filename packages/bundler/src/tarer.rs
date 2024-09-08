@@ -24,7 +24,7 @@ impl Tarer {
         tar.append_path(self.dir.join(&config.wasm_root))?;
         let assets_dir = self.dir.join("assets");
         if assets_dir.exists() {
-            tar.append_path(assets_dir)?;
+            tar.append_dir_all("assets", assets_dir)?;
         }
 
         Ok(())
