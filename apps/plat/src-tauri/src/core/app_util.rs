@@ -25,7 +25,6 @@ impl AppUtil {
         let channel_map = self.channel_map.clone();
         channel_map.lock().await.insert(id.clone(), tx);
 
-        println!("send channel data");
         self.app_handle
             .emit(
                 "channel",

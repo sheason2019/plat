@@ -8,6 +8,7 @@ use std::{
 
 use anyhow::Context;
 use daemon::{daemon::PluginDaemon, service::PluginDaemonService};
+use models::PluginConfig;
 use plugin::PluginService;
 use serde_json::{json, Value};
 use tauri::{AppHandle, Manager};
@@ -172,21 +173,24 @@ impl Profile {
         plugin_directory: PathBuf,
     ) -> anyhow::Result<()> {
         let daemon_service = self.daemon_service_map.get(public_key).unwrap();
+        let plugin_config = PluginConfig::from_file(plugin_directory.join("plugin.json"))?;
+        let service_key = format!(
+            "{}.{}",
+            &daemon_service.plugin_daemon.public_key, &plugin_config.name
+        );
+
+        match self.plugin_service_map.get(&service_key) {
+            Some(value) => {
+                value.stop().await;
+                daemon_service.health_check().await;
+            }
+            None => (),
+        }
+
         let service =
             plugin::PluginService::new(plugin_directory, daemon_service.addr.clone(), None, 0)
                 .await?;
-        match self.plugin_service_map.insert(
-            format!(
-                "{}.{}",
-                &daemon_service.plugin_daemon.public_key, &service.registed_plugin.config.name
-            ),
-            service,
-        ) {
-            None => (),
-            Some(value) => {
-                value.stop().await;
-            }
-        }
+        self.plugin_service_map.insert(service_key, service);
 
         Ok(())
     }

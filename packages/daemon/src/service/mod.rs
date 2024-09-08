@@ -94,7 +94,7 @@ impl PluginDaemonService {
         Ok(())
     }
 
-    async fn health_check(&self) {
+    pub async fn health_check(&self) {
         let mut rm_vec: Vec<String> = Vec::new();
 
         for (key, value) in self.registed_plugins.lock().await.iter() {
