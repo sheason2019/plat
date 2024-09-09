@@ -13,6 +13,8 @@ pub struct PluginConfig {
     pub name: String,
     pub version: String,
     pub wasm_root: String,
+    pub assets_root: String,
+    pub storage_root: String,
     pub entries: Vec<PluginEntry>,
 }
 
@@ -29,5 +31,9 @@ impl PluginConfig {
         let file_bytes = fs::read(file_path)?;
         let config: PluginConfig = serde_json::from_slice(&file_bytes)?;
         Ok(config)
+    }
+
+    pub fn to_json_string(&self) -> anyhow::Result<String> {
+        Ok(serde_json::to_string(self)?)
     }
 }

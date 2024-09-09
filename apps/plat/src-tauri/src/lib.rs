@@ -119,9 +119,10 @@ fn setup<'a>(app: &'a mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
         info!("日志模块已加载");
 
         info!("初始化用户信息");
-        let profile = Profile::init(data_root.clone(), handle.clone())
-            .await
-            .expect("init profile failed");
+        let profile = match Profile::init(data_root.clone(), handle.clone()).await {
+            Ok(value) => value,
+            Err(e) => panic!("初始化用户信息失败，原因：{}", e),
+        };
         handle.manage(Mutex::new(profile));
         info!("用户信息初始化已完成");
     });

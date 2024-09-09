@@ -11,19 +11,17 @@ use wasmtime_wasi_http::{WasiHttpCtx, WasiHttpView};
 
 pub struct PlatServer {
     pub pre: ProxyPre<PlatClientState>,
+    pub plugin_config: models::PluginConfig,
+    pub plugin_config_directory: PathBuf,
+    pub daemon_address: String,
 }
 
 impl PlatServer {
     pub async fn handle_request(
         &self,
         req: hyper::Request<hyper::body::Incoming>,
-        plugin_dir: PathBuf,
-        daemon_address: String,
     ) -> Result<hyper::Response<HyperOutgoingBody>> {
-        let mut store = Store::new(
-            self.pre.engine(),
-            PlatClientState::new(plugin_dir, daemon_address),
-        );
+        let mut store = Store::new(self.pre.engine(), PlatClientState::new(&self));
         let (sender, receiver) = tokio::sync::oneshot::channel();
         let req = store.data_mut().new_incoming_request(Scheme::Http, req)?;
         let out = store.data_mut().new_response_outparam(sender)?;
@@ -70,13 +68,17 @@ pub struct PlatClientState {
 }
 
 impl PlatClientState {
-    pub fn new(plugin_root: PathBuf, daemon_address: String) -> Self {
-        let storage_path = plugin_root.join("storage");
+    pub fn new(plat_server: &PlatServer) -> Self {
+        let storage_path = plat_server
+            .plugin_config_directory
+            .join(&plat_server.plugin_config.storage_root);
         if !storage_path.exists() {
             fs::create_dir_all(&storage_path).unwrap();
         }
 
-        let assets_path = plugin_root.join("assets");
+        let assets_path = plat_server
+            .plugin_config_directory
+            .join(&plat_server.plugin_config.assets_root);
         if !assets_path.exists() {
             fs::create_dir_all(&assets_path).unwrap();
         }
@@ -85,7 +87,7 @@ impl PlatClientState {
             table: ResourceTable::new(),
             wasi: WasiCtxBuilder::new()
                 .inherit_stdio()
-                .envs(&[("daemon_address", &daemon_address)])
+                .envs(&[("daemon_address", &plat_server.daemon_address)])
                 .preopened_dir(storage_path, "/storage", DirPerms::all(), FilePerms::all())
                 .unwrap()
                 .preopened_dir(assets_path, "/assets", DirPerms::all(), FilePerms::all())

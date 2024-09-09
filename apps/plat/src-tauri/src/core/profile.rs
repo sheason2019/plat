@@ -33,12 +33,12 @@ impl Profile {
 
         let data_root = path::Path::new(&data_root);
         if !data_root.exists() {
-            fs::create_dir_all(data_root).context("create data_root failed")?;
+            fs::create_dir_all(data_root).context("创建应用数据根目录失败")?;
         }
 
         let data_root_content = std::fs::read_dir(data_root).context("read dir failed")?;
         for daemon_directory in data_root_content {
-            let daemon_directory = daemon_directory?;
+            let daemon_directory = daemon_directory.context("读取 Daemon 文件夹失败")?;
 
             let filename = daemon_directory.file_name().into_string().unwrap();
             if filename.starts_with(".") {
@@ -67,7 +67,8 @@ impl Profile {
                     Ok(allow)
                 })
             })
-            .await?;
+            .await
+            .context("启动插件守护服务失败")?;
 
             match profile.daemon_service_map.insert(
                 daemon_service.plugin_daemon.public_key.clone(),
@@ -101,7 +102,8 @@ impl Profile {
                         &daemon_service.plugin_daemon.public_key,
                         plugins_directory_content.path(),
                     )
-                    .await?;
+                    .await
+                    .context("启动插件服务失败")?;
             }
         }
 
@@ -187,9 +189,13 @@ impl Profile {
             None => (),
         }
 
-        let service =
-            plugin::PluginService::new(plugin_directory, daemon_service.addr.clone(), None, 0)
-                .await?;
+        let service = plugin::PluginService::new(
+            plugin_directory.join("plugin.json"),
+            daemon_service.addr.clone(),
+            None,
+            0,
+        )
+        .await?;
         self.plugin_service_map.insert(service_key, service);
 
         Ok(())

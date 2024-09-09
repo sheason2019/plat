@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use bundler::{tarer::Tarer, untarer::Untarer};
 use clap::{Parser, Subcommand};
 use plugin::PluginService;
@@ -47,21 +48,37 @@ impl Cli {
                 regist_address,
                 port,
             }) => {
-                // 启动 Plugin Daemon
-                println!("connecting to plugin daemon: {}", daemon_address);
-
                 let port = match port {
                     Some(val) => *val,
                     None => 0,
                 };
+
+                let plugin_path = match path.is_absolute() {
+                    true => path.clone(),
+                    false => std::env::current_dir()?,
+                };
+                let plugin_path = match plugin_path.is_dir() {
+                    true => plugin_path.join("plugin.json"),
+                    false => plugin_path,
+                };
+                if !plugin_path.exists() {
+                    return Err(anyhow!("未找到指定的 Plugin 配置文件"));
+                }
+
                 // 启动 Plugin
                 let service = PluginService::new(
-                    path.clone(),
+                    plugin_path,
                     daemon_address.clone(),
                     regist_address.clone(),
                     port,
                 )
                 .await?;
+
+                println!("start plugin success:");
+                println!("plugin address: {}", service.addr());
+                println!("daemon address: {}", daemon_address);
+
+                // 等待服务停止
                 service.wait().await;
             }
             None => {}

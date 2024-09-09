@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{anyhow, Context};
@@ -28,32 +27,45 @@ pub struct PluginService {
 
 impl PluginService {
     pub async fn new(
-        plugin_root: PathBuf,
+        plugin_config_path: PathBuf,
         daemon_address: String,
         regist_address: Option<String>,
         port: u16,
     ) -> anyhow::Result<Self> {
-        let plugin_config = models::PluginConfig::from_file(plugin_root.join("plugin.json"))?;
+        if !plugin_config_path.is_absolute() {
+            return Err(anyhow!(
+                "plugin_config_path 必须为绝对路径，但它的值为：{}",
+                plugin_config_path.to_str().unwrap()
+            ));
+        }
+
+        let plugin_config = models::PluginConfig::from_file(plugin_config_path.clone())?;
+        let plugin_config_directory = plugin_config_path.parent().unwrap().to_path_buf();
 
         let mut config = Config::new();
         config.async_support(true);
         let engine = Engine::new(&config)?;
 
-        let component =
-            Component::from_file(&engine, plugin_root.join(plugin_config.wasm_root.clone()))?;
+        let component = Component::from_file(
+            &engine,
+            plugin_config_directory.join(plugin_config.wasm_root.clone()),
+        )?;
 
         let mut linker = Linker::new(&engine);
         wasmtime_wasi::add_to_linker_async(&mut linker)?;
         wasmtime_wasi_http::add_only_http_to_linker_async(&mut linker)?;
         let pre = ProxyPre::new(linker.instantiate_pre(&component)?)?;
-        let server = Arc::new(PlatServer { pre });
+        let plat_server = Arc::new(PlatServer {
+            pre,
+            plugin_config,
+            plugin_config_directory,
+            daemon_address,
+        });
 
         // plugin init
         {
-            let mut store = Store::new(
-                server.pre.engine(),
-                PlatClientState::new(plugin_root.clone(), daemon_address.clone()),
-            );
+            let mut store =
+                Store::new(plat_server.pre.engine(), PlatClientState::new(&plat_server));
             let instance = linker
                 .instantiate_async(&mut store, &component)
                 .await
@@ -73,27 +85,20 @@ impl PluginService {
         let plugin_address = format!("http://{}", listener.local_addr().unwrap());
 
         let handler = tokio::task::spawn({
-            let daemon_address = daemon_address.clone();
-            let plugin_root = plugin_root.clone();
+            let plat_server = plat_server.clone();
             async move {
                 loop {
                     let (client, _addr) = listener
                         .accept()
                         .await
                         .expect("plugin server accept failed");
-                    let server = server.clone();
-                    let plugin_root = plugin_root.clone();
-                    let plugin_json_path = plugin_root.clone().join("plugin.json");
-                    let daemon_address = daemon_address.clone();
+                    let plat_server = plat_server.clone();
                     tokio::task::spawn(async move {
                         if let Err(_e) = http1::Builder::new()
                             .serve_connection(
                                 TokioIo::new(client),
                                 hyper::service::service_fn(move |req| {
-                                    let server = server.clone();
-                                    let plugin_root = plugin_root.clone();
-                                    let plugin_json_path = plugin_json_path.clone();
-                                    let daemon_address = daemon_address.clone();
+                                    let plat_server = plat_server.clone();
                                     async move {
                                         let method = req.method();
                                         let uri = req.uri();
@@ -101,16 +106,10 @@ impl PluginService {
 
                                         match (method, path) {
                                             (&Method::GET, "/plugin.json") => {
-                                                send_plugin_json(req, plugin_json_path)
+                                                send_plugin_json(req, &plat_server.plugin_config)
                                             }
                                             (_method, _uri) => {
-                                                server
-                                                    .handle_request(
-                                                        req,
-                                                        plugin_root.clone(),
-                                                        daemon_address.clone(),
-                                                    )
-                                                    .await
+                                                plat_server.handle_request(req).await
                                             }
                                         }
                                     }
@@ -132,17 +131,17 @@ impl PluginService {
         let service = PluginService {
             registed_plugin: RegistedPlugin {
                 addr: plugin_address,
-                config: plugin_config,
+                config: plat_server.plugin_config.clone(),
             },
             stop_server_sender: tx.clone(),
             service_handler,
         };
 
         // plugin regist
-        let url = url::Url::parse(&daemon_address)
+        let url = url::Url::parse(&plat_server.daemon_address)
             .context(format!(
                 "parse daemon address {} failed",
-                daemon_address.clone()
+                &plat_server.daemon_address
             ))?
             .join("plugin")?;
         let mut data = HashMap::new();
@@ -171,6 +170,10 @@ impl PluginService {
         Ok(service)
     }
 
+    pub fn addr(&self) -> &String {
+        &self.registed_plugin.addr
+    }
+
     pub async fn stop(&self) {
         self.stop_server_sender.send(()).await.unwrap();
     }
@@ -182,9 +185,9 @@ impl PluginService {
 
 fn send_plugin_json(
     _req: hyper::Request<hyper::body::Incoming>,
-    plugin_json_path: impl AsRef<Path>,
+    plugin_config: &models::PluginConfig,
 ) -> Result<hyper::Response<HyperOutgoingBody>> {
-    let plugin_json = fs::read(plugin_json_path)?;
+    let plugin_json = plugin_config.to_json_string()?.as_bytes().to_vec();
 
     let body = Full::new(plugin_json.into())
         .map_err(|never| match never {})
