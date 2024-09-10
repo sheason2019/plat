@@ -39,7 +39,7 @@ impl Tarer {
             new_config
         };
 
-        let plugin_string = serde_json::to_string(&plugin_config)?;
+        let plugin_string = plugin_config.to_json_string()?;
         let plugin_bytes = plugin_string.as_bytes();
         let mut header = tar::Header::new_gnu();
         header.set_size(plugin_bytes.len().try_into()?);

@@ -475,8 +475,6 @@ dependencies = [
  "anyhow",
  "flate2",
  "models",
- "serde",
- "serde_json",
  "tar",
  "urlencoding",
 ]
@@ -3323,7 +3321,6 @@ dependencies = [
  "models",
  "plugin",
  "reqwest",
- "ring",
  "serde",
  "serde_json",
  "tauri",
