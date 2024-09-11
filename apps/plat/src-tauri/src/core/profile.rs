@@ -150,9 +150,9 @@ impl Profile {
             })
         })
         .await?;
-        self.daemon_service_map
-            .insert(service.plugin_daemon.public_key.clone(), service)
-            .unwrap();
+        let _ = self
+            .daemon_service_map
+            .insert(service.plugin_daemon.public_key.clone(), service);
 
         result
     }

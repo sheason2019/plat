@@ -8,6 +8,7 @@ use hyper::server::conn::http1;
 use hyper::{Method, Response};
 use models::RegistedPlugin;
 use tokio::sync::mpsc::Sender;
+use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use wasi::{PlatClientState, PlatServer};
 use wasmtime::component::{Component, Linker};
@@ -60,6 +61,7 @@ impl PluginService {
             plugin_config,
             plugin_config_directory,
             daemon_address,
+            lock_id_map: Arc::new(Mutex::new(HashMap::new())),
         });
 
         // plugin init
