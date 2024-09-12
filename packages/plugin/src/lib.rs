@@ -10,13 +10,13 @@ use models::RegistedPlugin;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
-use wasi::{PlatClientState, PlatServer};
+use wasi::PlatServer;
 use wasmtime::component::{Component, Linker};
 use wasmtime::{Config, Engine, Result, Store};
-use wasmtime_wasi_http::bindings::ProxyPre;
 use wasmtime_wasi_http::body::HyperOutgoingBody;
 use wasmtime_wasi_http::io::TokioIo;
 
+mod plat_bindings;
 mod wasi;
 
 pub struct PluginService {
@@ -55,31 +55,34 @@ impl PluginService {
         let mut linker = Linker::new(&engine);
         wasmtime_wasi::add_to_linker_async(&mut linker)?;
         wasmtime_wasi_http::add_only_http_to_linker_async(&mut linker)?;
-        let pre = ProxyPre::new(linker.instantiate_pre(&component)?)?;
+        plat_bindings::lock::add_to_linker(&mut linker, |state: &mut plat_bindings::Component| {
+            state
+        })?;
+        plat_bindings::task::add_to_linker(&mut linker, |state: &mut plat_bindings::Component| {
+            state
+        })?;
+        plat_bindings::channel::add_to_linker(
+            &mut linker,
+            |state: &mut plat_bindings::Component| state,
+        )?;
+
+        let pre = plat_bindings::PlatWorldPre::new(linker.instantiate_pre(&component)?)?;
         let plat_server = Arc::new(PlatServer {
             pre,
             plugin_config,
             plugin_config_directory,
             daemon_address,
-            lock_id_map: Arc::new(Mutex::new(HashMap::new())),
+            lock_map: Arc::new(Mutex::new(HashMap::new())),
         });
 
         // plugin init
         {
-            let mut store =
-                Store::new(plat_server.pre.engine(), PlatClientState::new(&plat_server));
-            let instance = linker
-                .instantiate_async(&mut store, &component)
-                .await
-                .expect("get plugin instance failed");
-            let init_func = instance.get_typed_func::<(), ()>(&mut store, "on-init");
-            if init_func.is_ok() {
-                init_func
-                    .unwrap()
-                    .call_async(&mut store, ())
-                    .await
-                    .expect("plugin init func");
-            }
+            let mut store = Store::new(
+                plat_server.pre.engine(),
+                plat_bindings::Component::new(&plat_server),
+            );
+            let world = plat_server.pre.instantiate_async(&mut store).await?;
+            world.lifecycle().call_before_start(&mut store).await?;
         }
 
         // plugin server
