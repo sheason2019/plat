@@ -4,8 +4,7 @@ world plat-world {
     include wasi:http/proxy@0.2.0;
     
     export lifecycle: interface {
-        before-start: func();
-        on-started: func();
+        on-start: func();
     }
 
     import lock: interface {

@@ -50,25 +50,10 @@ impl Profile {
                 continue;
             }
 
-            let app_util = profile.app_util.clone();
             let daemon = PluginDaemon::from_directory(daemon_directory.path())?;
-            let public_key = daemon.public_key.clone();
-            let daemon_service = PluginDaemonService::new(daemon, 0, move |req| {
-                let app_util = app_util.clone();
-                let public_key = public_key.clone();
-                Box::pin(async move {
-                    let allow = app_util
-                        .confirm_sign_dialog(
-                            req.base64_url_data_string,
-                            "describe".to_string(),
-                            public_key,
-                        )
-                        .await;
-                    Ok(allow)
-                })
-            })
-            .await
-            .context("启动插件守护服务失败")?;
+            let daemon_service = PluginDaemonService::new(daemon, 0)
+                .await
+                .context("启动插件守护服务失败")?;
 
             match profile.daemon_service_map.insert(
                 daemon_service.plugin_daemon.public_key.clone(),
@@ -134,22 +119,7 @@ impl Profile {
         let public_key = daemon.public_key.clone();
         let result = Ok(public_key.clone());
 
-        let app_util = self.app_util.clone();
-        let service = PluginDaemonService::new(daemon, 0, move |req| {
-            let app_util = app_util.clone();
-            let public_key = public_key.clone();
-            Box::pin(async move {
-                let allow = app_util
-                    .confirm_sign_dialog(
-                        req.base64_url_data_string,
-                        "describe".to_string(),
-                        public_key,
-                    )
-                    .await;
-                Ok(allow)
-            })
-        })
-        .await?;
+        let service = PluginDaemonService::new(daemon, 0).await?;
         let _ = self
             .daemon_service_map
             .insert(service.plugin_daemon.public_key.clone(), service);
@@ -180,14 +150,6 @@ impl Profile {
             "{}.{}",
             &daemon_service.plugin_daemon.public_key, &plugin_config.name
         );
-
-        match self.plugin_service_map.get(&service_key) {
-            Some(value) => {
-                value.stop().await;
-                daemon_service.health_check().await;
-            }
-            None => (),
-        }
 
         let service = plugin::PluginService::new(
             plugin_directory.join("plugin.json"),

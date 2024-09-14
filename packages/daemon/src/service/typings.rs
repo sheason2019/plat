@@ -1,17 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
-
-use futures::future::BoxFuture;
 use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
-
-use crate::daemon::PluginDaemon;
-
-#[derive(Clone)]
-pub struct ServiceState {
-    pub daemon: PluginDaemon,
-    pub registed_plugins: Arc<Mutex<HashMap<String, models::RegistedPlugin>>>,
-    pub confirm_signature_handler: Arc<ConfirmSignatureHandler>,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegistPluginRequest {
@@ -35,5 +22,9 @@ pub struct VerifyResponse {
     pub success: bool,
 }
 
-pub type ConfirmSignatureHandler =
-    dyn Fn(SignRequest) -> BoxFuture<'static, anyhow::Result<bool>> + Send + Sync + 'static;
+#[derive(Debug, Clone)]
+pub enum DaemonChannelType {
+    Terminate,
+    MutateDaemon,
+    DisconnectPlugin(String),
+}
