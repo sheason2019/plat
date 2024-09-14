@@ -9,7 +9,7 @@ import {
 } from "@nextui-org/react";
 import useProfile from "../../hooks/core/use-profile";
 import { invoke } from "@tauri-apps/api/core";
-import useIsolate from "../../hooks/core/use-isolate";
+import useDaemon from "../../hooks/core/use-daemon";
 import { RegistedPlugin } from "../../models/core";
 
 interface Props {
@@ -18,7 +18,7 @@ interface Props {
 
 export default function DeletePluginButton({ plugin }: Props) {
   const { mutate } = useProfile();
-  const isolate = useIsolate();
+  const isolate = useDaemon();
   const { isOpen, onClose, onOpen } = useDisclosure();
 
   const handleDelete = async () => {

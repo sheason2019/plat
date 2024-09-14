@@ -1,7 +1,7 @@
 import { useParams } from "@tanstack/react-router";
 import useProfile from "./use-profile";
 
-export default function useIsolate() {
+export default function useDaemon() {
   const { pubkey } = useParams({ strict: false });
 
   const { data } = useProfile();

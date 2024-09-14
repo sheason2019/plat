@@ -2,10 +2,10 @@ import { Button } from "@nextui-org/react";
 import useIsolateDrawer from "../hooks/use-isolate-drawer";
 import { motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
-import useIsolate from "../../../hooks/core/use-isolate";
+import useDaemon from "../../../hooks/core/use-daemon";
 
 export default function SettingButton() {
-  const isolate = useIsolate();
+  const isolate = useDaemon();
   const { isOpen, onOpenChange } = useIsolateDrawer();
 
   return (

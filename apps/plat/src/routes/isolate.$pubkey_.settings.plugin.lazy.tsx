@@ -1,5 +1,5 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
-import useIsolate from "../hooks/core/use-isolate";
+import useDaemon from "../hooks/core/use-daemon";
 import PluginCard from "../components/plugins/plugin-card";
 import InstallPluginButton from "../components/plugins/install-plugin-button";
 
@@ -8,7 +8,7 @@ export const Route = createLazyFileRoute("/isolate/$pubkey/settings/plugin")({
 });
 
 function PluginManage() {
-  const isolate = useIsolate();
+  const isolate = useDaemon();
   const plugins = isolate?.registed_plugins && Object.values(isolate?.registed_plugins);
 
   return (

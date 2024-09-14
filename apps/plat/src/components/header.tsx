@@ -11,8 +11,8 @@ export default function Header({ title, backHref }: Props) {
   return (
     <div
       className={clsx(
-        "bg-blue-50 backdrop-blur-md shadow-sm sticky top-0",
-        "flex items-center px-3 h-12 md:h-14"
+        "backdrop-blur-md sticky top-0",
+        "flex items-center px-3 my-1 h-10"
       )}
     >
       {backHref && (
@@ -37,7 +37,7 @@ export default function Header({ title, backHref }: Props) {
           </svg>
         </Button>
       )}
-      <h1 className="text-2xl whitespace-nowrap select-none">{title}</h1>
+      <h1 className="text-lg whitespace-nowrap select-none">{title}</h1>
     </div>
   );
 }

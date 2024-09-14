@@ -6,13 +6,13 @@ import {
   DropdownTrigger,
 } from "@nextui-org/react";
 import { open } from "@tauri-apps/plugin-dialog";
-import useIsolate from "../../../hooks/core/use-isolate";
+import useDaemon from "../../../hooks/core/use-daemon";
 import useProfile from "../../../hooks/core/use-profile";
 import { invoke } from "@tauri-apps/api/core";
 
 export default function InstallPluginButton() {
   const { mutate } = useProfile();
-  const isolate = useIsolate();
+  const isolate = useDaemon();
 
   const handleInstallFromFile = async () => {
     const file = await open({

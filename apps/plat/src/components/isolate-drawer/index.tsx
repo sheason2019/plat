@@ -1,6 +1,6 @@
 import { Card, CardBody } from "@nextui-org/react";
 import { AnimatePresence, motion } from "framer-motion";
-import useIsolate from "../../hooks/core/use-isolate";
+import useDaemon from "../../hooks/core/use-daemon";
 import EntryButton from "./buttons/entry-button";
 import { Fragment } from "react/jsx-runtime";
 import useIsolateDrawer from "./hooks/use-isolate-drawer";
@@ -9,7 +9,7 @@ import SettingButton from "./buttons/setting-button";
 import AccountToggler from "./buttons/account-toggler";
 
 export default function IsolateDrawer() {
-  const isolate = useIsolate();
+  const isolate = useDaemon();
   const plugins = isolate?.registed_plugins && Object.values(isolate.registed_plugins);
   const { isOpen, onClose } = useIsolateDrawer();
 
