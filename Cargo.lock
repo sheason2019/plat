@@ -499,7 +499,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "flate2",
- "models",
+ "plugin",
+ "serde_json",
  "tar",
  "urlencoding",
 ]
@@ -1152,7 +1153,7 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "futures",
- "models",
+ "plugin",
  "reqwest",
  "ring",
  "serde",
@@ -2760,15 +2761,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "models"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "muda"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3348,10 +3340,10 @@ name = "plat"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "axum",
  "base64 0.22.1",
  "bundler",
  "daemon",
- "models",
  "plugin",
  "reqwest",
  "serde",
@@ -3375,7 +3367,6 @@ dependencies = [
  "anyhow",
  "bundler",
  "clap",
- "models",
  "plugin",
  "tokio",
 ]
@@ -3401,7 +3392,7 @@ dependencies = [
  "futures-util",
  "http-body-util",
  "hyper",
- "models",
+ "serde",
  "serde_json",
  "tokio",
  "tokio-tungstenite 0.23.1",

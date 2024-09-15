@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 
+use plugin::models::PluginConfig;
 use serde_json::json;
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::{mpsc::Sender, Mutex};
@@ -108,7 +109,7 @@ impl AppUtil {
 
         let plugin_file = plugin_cache_directory.join("plugin.json");
         let plugin_bytes = fs::read(plugin_file)?;
-        let plugin: models::PluginConfig = serde_json::from_slice(&plugin_bytes)?;
+        let plugin: PluginConfig = serde_json::from_slice(&plugin_bytes)?;
         // 2. 发出 Channel 等待用户确认安装 Plugin
         let channel = self
             .make_channel(

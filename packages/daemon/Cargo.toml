@@ -9,7 +9,7 @@ serde_json.workspace = true
 anyhow.workspace = true
 tokio.workspace = true
 reqwest.workspace = true
-models = { path = "../models" }
+plugin.path = "../plugin"
 base64 = "0.22.1"
 ring = "0.17.8"
 axum = { version = "0.7.5", features = ["ws"] }

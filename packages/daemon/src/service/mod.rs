@@ -11,7 +11,7 @@ use axum::{
     Json, Router,
 };
 use futures::{SinkExt, StreamExt};
-use models::RegistedPlugin;
+use plugin::models::PluginConfig;
 use serde_json::{json, Value};
 use tokio::sync::{broadcast::Sender, Mutex};
 use typings::{DaemonChannelType, SignRequest, VerifyRequest, VerifyResponse};
@@ -23,7 +23,7 @@ use crate::daemon::{PluginDaemon, SignBox};
 pub struct PluginDaemonService {
     pub plugin_daemon: PluginDaemon,
     pub addr: String,
-    pub registed_plugins: Arc<Mutex<HashMap<String, models::RegistedPlugin>>>,
+    pub registed_plugins: Arc<Mutex<HashMap<String, PluginConfig>>>,
 
     channel: Sender<DaemonChannelType>,
 }
@@ -49,7 +49,7 @@ impl PluginDaemonService {
             async move {
                 let app = Router::new()
                     .route("/api", get(root_handler))
-                    .route("/api/plugin", get(regist_plugin_handler))
+                    .route("/api/regist", get(regist_plugin_handler))
                     .route("/api/sig", post(sign_handler))
                     .route("/api/verify", post(verify_handler))
                     .with_state(service.clone());
@@ -104,8 +104,8 @@ async fn regist_plugin_handler(
             Message::Text(data) => data,
             _ => panic!("Message failed"),
         };
-        let data: RegistedPlugin = serde_json::from_str(&data).unwrap();
-        let name = data.config.name.clone();
+        let plugin_config: PluginConfig = serde_json::from_str(&data).unwrap();
+        let name = plugin_config.name.clone();
 
         if service.registed_plugins.lock().await.contains_key(&name) {
             write
@@ -118,7 +118,11 @@ async fn regist_plugin_handler(
             return;
         }
 
-        service.registed_plugins.lock().await.insert(name.clone(), data);
+        service
+            .registed_plugins
+            .lock()
+            .await
+            .insert(name.clone(), plugin_config);
 
         let (tx, _rx) = tokio::sync::broadcast::channel::<()>(4);
 

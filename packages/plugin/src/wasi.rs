@@ -1,24 +1,26 @@
-use std::collections::HashMap;
+use std::fs;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::anyhow;
-use tokio::sync::Mutex;
+use futures_util::{SinkExt, StreamExt};
+use tokio::sync::broadcast::Sender;
+use tokio_tungstenite::tungstenite::Message;
+use url::Url;
 use wasmtime::component::{Component, Linker};
 use wasmtime::{Config, Engine, Result, Store};
 use wasmtime_wasi_http::bindings::http::types::Scheme;
 use wasmtime_wasi_http::body::HyperOutgoingBody;
 use wasmtime_wasi_http::WasiHttpView;
 
+use crate::models::PluginConfig;
 use crate::plat_bindings;
 
 pub struct PlatServer {
     pub pre: plat_bindings::PlatWorldPre<plat_bindings::Component>,
-    pub plugin_config: models::PluginConfig,
+    pub plugin_config: PluginConfig,
     pub plugin_config_directory: PathBuf,
     pub daemon_address: String,
-
-    pub lock_map: Arc<Mutex<HashMap<String, Arc<Mutex<()>>>>>,
 }
 
 impl PlatServer {
@@ -30,8 +32,9 @@ impl PlatServer {
             ));
         }
 
-        let plugin_config = models::PluginConfig::from_file(plugin_config_path.clone())?;
         let plugin_config_directory = plugin_config_path.parent().unwrap().to_path_buf();
+        let plugin_config_bytes = fs::read(plugin_config_path)?;
+        let plugin_config: PluginConfig = serde_json::from_slice(&plugin_config_bytes)?;
 
         let mut config = Config::new();
         config.async_support(true);
@@ -62,7 +65,6 @@ impl PlatServer {
             plugin_config,
             plugin_config_directory,
             daemon_address,
-            lock_map: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -102,5 +104,75 @@ impl PlatServer {
                 anyhow::bail!("guest never invoked `response-outparam::set` method: {e:?}")
             }
         }
+    }
+
+    pub async fn create_regist_plugin_handle(&self) -> anyhow::Result<Sender<()>> {
+        let mut regist_plugin_address = Url::parse(&self.daemon_address)?.join("api/regist")?;
+        match regist_plugin_address.scheme() {
+            "http" => {
+                regist_plugin_address.set_scheme("ws").unwrap();
+            }
+            "https" => {
+                regist_plugin_address.set_scheme("wss").unwrap();
+            }
+            _ => {}
+        };
+
+        let (ws_stream, _response) =
+            tokio_tungstenite::connect_async(regist_plugin_address.to_string()).await?;
+        let (mut write, mut read) = ws_stream.split();
+
+        match read.next().await.unwrap()? {
+            Message::Text(text) => {
+                if text != "Ready" {
+                    return Err(anyhow!("注册 Plugin 失败"));
+                }
+            }
+            _ => return Err(anyhow!("注册 Plugin 失败")),
+        }
+
+        write
+            .send(Message::text(
+                serde_json::to_string(&self.plugin_config).unwrap(),
+            ))
+            .await?;
+
+        let (tx, _rx) = tokio::sync::broadcast::channel::<()>(4);
+        tokio::task::spawn({
+            let tx = tx.clone();
+            async move {
+                let mut sub = tx.subscribe();
+                loop {
+                    tokio::select! {
+                        _ = tokio::time::sleep(Duration::from_secs(4)) => {
+                            write.send(Message::Ping(Vec::new())).await.unwrap();
+                        },
+                        _ = sub.recv() => break,
+                    }
+                }
+                let _ = tx.send(());
+            }
+        });
+        tokio::task::spawn({
+            let tx = tx.clone();
+            async move {
+                let mut sub = tx.subscribe();
+                loop {
+                    tokio::select! {
+                        _ = tokio::time::sleep(Duration::from_secs(10)) => break,
+                        _ = sub.recv() => break,
+                        recv = read.next() => {
+                            match recv {
+                                Some(_) => (),
+                                None => break,
+                            }
+                        },
+                    }
+                }
+                let _ = tx.send(());
+            }
+        });
+
+        Ok(tx)
     }
 }

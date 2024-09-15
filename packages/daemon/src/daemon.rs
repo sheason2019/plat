@@ -10,6 +10,8 @@ use std::{fs, path::PathBuf};
 pub struct PluginDaemon {
     pub public_key: String,
     private_key: String,
+    password: String,
+    address: Option<String>,
 }
 
 impl PluginDaemon {
@@ -26,6 +28,8 @@ impl PluginDaemon {
         let daemon = PluginDaemon {
             public_key,
             private_key,
+            password: "TODO".to_string(),
+            address: None,
         };
 
         daemon.save(data_root)?;

@@ -4,20 +4,20 @@ use std::sync::Arc;
 use http_body_util::{BodyExt, Full};
 use hyper::server::conn::http1;
 use hyper::{Method, Response};
-use plugin_pre::PluginPre;
+use tokio::net::TcpListener;
 use tokio::sync::broadcast::Sender;
 use wasi::PlatServer;
 use wasmtime::{Result, Store};
 use wasmtime_wasi_http::body::HyperOutgoingBody;
 use wasmtime_wasi_http::io::TokioIo;
 
+pub mod models;
 mod plat_bindings;
-mod plugin_pre;
 mod wasi;
 
 pub struct PluginService {
-    pub registed_plugin: models::RegistedPlugin,
     terminate: Sender<()>,
+    plat_server: Arc<PlatServer>,
 }
 
 impl PluginService {
@@ -27,19 +27,18 @@ impl PluginService {
         regist_address: Option<String>,
         port: u16,
     ) -> anyhow::Result<Self> {
-        let plat_server = PlatServer::new(plugin_config_path, daemon_address.clone())?;
+        let tcp_listener = TcpListener::bind(format!("127.0.0.1:{}", port)).await?;
+
+        let mut plat_server = PlatServer::new(plugin_config_path, daemon_address.clone())?;
+        let address = match regist_address {
+            None => format!("http://{}", tcp_listener.local_addr()?),
+            Some(value) => value,
+        };
+        plat_server.plugin_config.address = Some(address);
+
         let plat_server = Arc::new(plat_server);
 
-        let plugin_pre = PluginPre::new(
-            daemon_address,
-            plat_server.plugin_config.clone(),
-            regist_address,
-            port,
-        )
-        .await?;
-        let registed_plugin = plugin_pre.registed_plugin.clone();
-
-        let terminate = plugin_pre.create_regist_plugin_handle().await?;
+        let terminate = plat_server.create_regist_plugin_handle().await?;
 
         // plugin init
         let init_handler = tokio::task::spawn({
@@ -68,7 +67,7 @@ impl PluginService {
                 let mut sub = terminate.subscribe();
                 loop {
                     let (client, _addr) = tokio::select! {
-                        val = plugin_pre.tcp_listener.accept() => val,
+                        val = tcp_listener.accept() => val,
                         _ = sub.recv() => break,
                     }
                     .expect("plugin server accept failed");
@@ -104,13 +103,16 @@ impl PluginService {
         });
 
         Ok(PluginService {
-            registed_plugin,
+            plat_server,
             terminate,
         })
     }
 
-    pub fn addr(&self) -> &String {
-        &self.registed_plugin.addr
+    pub fn addr(&self) -> Option<String> {
+        match self.plat_server.plugin_config.address.as_ref() {
+            Some(value) => Some(value.clone()),
+            None => None,
+        }
     }
 
     pub async fn stop(&self) {
@@ -126,7 +128,7 @@ fn send_plugin_json(
     _req: hyper::Request<hyper::body::Incoming>,
     plugin_config: &models::PluginConfig,
 ) -> Result<hyper::Response<HyperOutgoingBody>> {
-    let plugin_json = plugin_config.to_json_string()?.as_bytes().to_vec();
+    let plugin_json = serde_json::to_string(&plugin_config)?.as_bytes().to_vec();
 
     let body = Full::new(plugin_json.into())
         .map_err(|never| match never {})

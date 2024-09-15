@@ -8,8 +8,7 @@ use std::{
 
 use anyhow::Context;
 use daemon::{daemon::PluginDaemon, service::PluginDaemonService};
-use models::PluginConfig;
-use plugin::PluginService;
+use plugin::{models::PluginConfig, PluginService};
 use serde_json::{json, Value};
 use tauri::{AppHandle, Manager};
 
@@ -145,7 +144,8 @@ impl Profile {
         plugin_directory: PathBuf,
     ) -> anyhow::Result<()> {
         let daemon_service = self.daemon_service_map.get(public_key).unwrap();
-        let plugin_config = PluginConfig::from_file(plugin_directory.join("plugin.json"))?;
+        let plugin_config_bytes = fs::read(plugin_directory.join("plugin.json"))?;
+        let plugin_config: PluginConfig = serde_json::from_slice(&plugin_config_bytes)?;
         let service_key = format!(
             "{}.{}",
             &daemon_service.plugin_daemon.public_key, &plugin_config.name

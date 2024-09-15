@@ -1,7 +1,5 @@
-use std::{collections::HashMap, fs, sync::Arc};
+use std::fs;
 
-use anyhow::anyhow;
-use tokio::sync::{mpsc::Sender, Mutex};
 use wasmtime::component::ResourceTable;
 use wasmtime_wasi::{async_trait, DirPerms, FilePerms, WasiCtx, WasiCtxBuilder, WasiView};
 use wasmtime_wasi_http::{WasiHttpCtx, WasiHttpView};

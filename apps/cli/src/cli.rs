@@ -75,7 +75,7 @@ impl Cli {
                 .await?;
 
                 println!("start plugin success:");
-                println!("plugin address: {}", service.addr());
+                println!("plugin address: {}", service.addr().unwrap());
                 println!("daemon address: {}", daemon_address);
 
                 // 等待服务停止

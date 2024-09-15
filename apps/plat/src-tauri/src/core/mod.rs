@@ -1,2 +1,2 @@
-pub mod profile;
 pub mod app_util;
+pub mod profile;
