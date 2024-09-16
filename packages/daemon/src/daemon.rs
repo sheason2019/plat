@@ -9,9 +9,9 @@ use std::{fs, path::PathBuf};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PluginDaemon {
     pub public_key: String,
-    private_key: String,
-    password: String,
-    address: Option<String>,
+    pub private_key: String,
+    pub password: String,
+    pub address: Option<String>,
 }
 
 impl PluginDaemon {

@@ -3344,6 +3344,7 @@ dependencies = [
  "base64 0.22.1",
  "bundler",
  "daemon",
+ "futures-util",
  "plugin",
  "reqwest",
  "serde",

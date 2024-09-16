@@ -1,14 +1,11 @@
-use host_service::{HostContext, HostService};
-use std::sync::Arc;
-
+use assets::host_assets::{self, HostAssets};
 use tauri::{Manager, State};
 
 pub mod assets;
 pub mod core;
-pub mod host_service;
 
 pub struct HostStateInner {
-    pub discovery_service: HostService,
+    host_assets: HostAssets,
 }
 pub type HostState<'a> = State<'a, HostStateInner>;
 
@@ -16,17 +13,14 @@ fn setup<'a>(app: &'a mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
     let handle = app.handle();
 
     tauri::async_runtime::block_on(async move {
-        // 启动宿主机服务
-        let host_context = HostContext::new();
-        let host_service = HostService::new_from_context(Arc::new(host_context))
+        
+        // 扫描文件系统构建资产树
+        let host_assets = HostAssets::new_from_scan(handle)
             .await
-            .unwrap();
+            .expect("扫描本地资产失败");
+        // 启动所有资产
 
-        // 扫描文件系统构建资产树，并启动所有资产
-
-        let state = HostStateInner {
-            discovery_service: host_service,
-        };
+        let state = HostStateInner { host_assets };
 
         handle.manage(state);
     });
