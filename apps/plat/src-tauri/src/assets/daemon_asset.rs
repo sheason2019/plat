@@ -8,7 +8,7 @@ use super::plugin_asset::PluginAsset;
 pub struct DaemonAsset {
     pub path: PathBuf,
     pub plugins: Mutex<HashMap<String, PluginAsset>>,
-    pub plugin_daemon: PluginDaemon,
+    plugin_daemon: PluginDaemon,
     plugin_daemon_service: Mutex<Option<Arc<PluginDaemonService>>>,
 }
 
@@ -38,6 +38,16 @@ impl DaemonAsset {
         }
 
         Ok(daemon_asset)
+    }
+
+    pub async fn get_plugin_daemon(&self) -> PluginDaemon {
+        self.plugin_daemon_service
+            .lock()
+            .await
+            .as_ref()
+            .unwrap()
+            .plugin_daemon
+            .clone()
     }
 
     pub async fn up(&self) -> anyhow::Result<()> {

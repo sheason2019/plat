@@ -7,11 +7,11 @@ import {
 } from "@nextui-org/react";
 import { open } from "@tauri-apps/plugin-dialog";
 import useDaemon from "../../../hooks/core/use-daemon";
-import useProfile from "../../../hooks/core/use-profile";
+import useDaemons from "../../../hooks/core/use-daemons";
 import { invoke } from "@tauri-apps/api/core";
 
 export default function InstallPluginButton() {
-  const { mutate } = useProfile();
+  const { mutate } = useDaemons();
   const isolate = useDaemon();
 
   const handleInstallFromFile = async () => {

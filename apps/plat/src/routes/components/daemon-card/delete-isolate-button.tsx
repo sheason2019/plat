@@ -8,7 +8,6 @@ import {
   useDisclosure,
 } from "@nextui-org/react";
 import { invoke } from "@tauri-apps/api/core";
-import useProfile from "../../hooks/core/use-profile";
 
 interface Props {
   publicKey: string;
@@ -19,12 +18,10 @@ export default function DeleteIsolateButton({
   publicKey,
   onClose: onCloseParent,
 }: Props) {
-  const { mutate } = useProfile();
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   const handleDelete = async () => {
     await invoke("delete_isolate", { publicKey });
-    mutate();
     onClose();
     onCloseParent();
   };

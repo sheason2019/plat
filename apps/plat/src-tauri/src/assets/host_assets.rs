@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
+use daemon::daemon::PluginDaemon;
 use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex;
 
@@ -55,6 +56,39 @@ impl HostAssets {
     pub async fn down(&self) -> anyhow::Result<()> {
         for daemon in self.daemons.lock().await.values() {
             daemon.down().await?;
+        }
+
+        Ok(())
+    }
+
+    pub async fn append_daemon(&self, plugin_daemon: PluginDaemon) -> anyhow::Result<()> {
+        let daemon_dir = self.path.join("daemons").join(&plugin_daemon.public_key);
+        if !daemon_dir.exists() {
+            fs::create_dir_all(&daemon_dir)?;
+        }
+
+        fs::write(
+            daemon_dir.join("daemon.json"),
+            serde_json::to_string(&plugin_daemon)?,
+        )?;
+
+        let daemon_asset = DaemonAsset::new_from_path(daemon_dir).await?;
+        daemon_asset.up().await?;
+
+        self.daemons
+            .lock()
+            .await
+            .insert(plugin_daemon.public_key.clone(), daemon_asset);
+
+        Ok(())
+    }
+
+    pub async fn delete_daemon(&self, public_key: String) -> anyhow::Result<()> {
+        match self.daemons.lock().await.remove(&public_key) {
+            None => (),
+            Some(asset) => {
+                asset.down().await?;
+            }
         }
 
         Ok(())

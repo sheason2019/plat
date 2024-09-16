@@ -4,18 +4,25 @@ use ring::{
     signature::{self, KeyPair},
 };
 use serde::{Deserialize, Serialize};
-use std::{fs, path::PathBuf};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum PluginDaemonVariant {
+    Local,
+    Remote,
+    Hybrid,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PluginDaemon {
     pub public_key: String,
     pub private_key: String,
     pub password: String,
+    pub variant: PluginDaemonVariant,
     pub address: Option<String>,
 }
 
 impl PluginDaemon {
-    pub fn generate(data_root: PathBuf) -> anyhow::Result<Self> {
+    pub fn new() -> anyhow::Result<Self> {
         let rng = rand::SystemRandom::new();
         let pkcs8_bytes = signature::Ed25519KeyPair::generate_pkcs8(&rng).unwrap();
 
@@ -29,33 +36,11 @@ impl PluginDaemon {
             public_key,
             private_key,
             password: "TODO".to_string(),
+            variant: PluginDaemonVariant::Local,
             address: None,
         };
 
-        daemon.save(data_root)?;
-
         Ok(daemon)
-    }
-
-    pub fn from_directory(daemon_directory: PathBuf) -> anyhow::Result<Self> {
-        let file_path = daemon_directory.join("daemon.json");
-        let file_bytes = fs::read(file_path)?;
-
-        let daemon: PluginDaemon = serde_json::from_slice(&file_bytes)?;
-        Ok(daemon)
-    }
-
-    pub fn save(&self, data_root: PathBuf) -> anyhow::Result<()> {
-        let file_path = data_root.join(&self.public_key).join("daemon.json");
-        let parent_dir = file_path.parent().unwrap();
-        if !parent_dir.exists() {
-            fs::create_dir_all(parent_dir)?;
-        }
-
-        let file_bytes = serde_json::to_string(self)?;
-        fs::write(file_path, file_bytes)?;
-
-        Ok(())
     }
 
     pub fn sign(&self, base64_url_data_string: String) -> anyhow::Result<SignBox> {

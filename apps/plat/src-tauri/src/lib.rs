@@ -1,12 +1,11 @@
-use assets::host_assets::{self, HostAssets};
-use tauri::{Manager, State};
+use assets::host_assets::HostAssets;
+use commands::{append_daemon, get_daemons};
+use tauri::Manager;
+use typings::HostStateInner;
 
 pub mod assets;
-
-pub struct HostStateInner {
-    host_assets: HostAssets,
-}
-pub type HostState<'a> = State<'a, HostStateInner>;
+pub mod commands;
+pub mod typings;
 
 fn setup<'a>(app: &'a mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let handle = app.handle();
@@ -33,7 +32,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(setup)
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![])
+        .invoke_handler(tauri::generate_handler![get_daemons, append_daemon])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

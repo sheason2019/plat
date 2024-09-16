@@ -22,7 +22,6 @@ use crate::daemon::{PluginDaemon, SignBox};
 
 pub struct PluginDaemonService {
     pub plugin_daemon: PluginDaemon,
-    pub addr: String,
     pub registed_plugins: Arc<Mutex<HashMap<String, PluginConfig>>>,
 
     channel: Sender<DaemonChannelType>,
@@ -31,15 +30,16 @@ pub struct PluginDaemonService {
 impl PluginDaemonService {
     pub async fn new(daemon: PluginDaemon, port: u16) -> anyhow::Result<Arc<Self>> {
         let tcp_listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", port)).await?;
-        let addr = format!("http://{}", tcp_listener.local_addr()?.to_string());
+        let address = format!("http://{}", tcp_listener.local_addr()?.to_string());
+
+        let mut plugin_daemon = daemon.clone();
+        plugin_daemon.address = Some(address);
 
         let (tx, _rx) = tokio::sync::broadcast::channel::<DaemonChannelType>(16);
 
         let service = PluginDaemonService {
-            plugin_daemon: daemon.clone(),
-            addr,
+            plugin_daemon,
             registed_plugins: Arc::new(Mutex::new(HashMap::new())),
-
             channel: tx,
         };
         let service = Arc::new(service);

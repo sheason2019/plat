@@ -7,7 +7,7 @@ import {
   ModalHeader,
   useDisclosure,
 } from "@nextui-org/react";
-import useProfile from "../../hooks/core/use-profile";
+import useDaemons from "../../hooks/core/use-daemons";
 import { invoke } from "@tauri-apps/api/core";
 import useDaemon from "../../hooks/core/use-daemon";
 import { RegistedPlugin } from "../../models/core";
@@ -17,7 +17,7 @@ interface Props {
 }
 
 export default function DeletePluginButton({ plugin }: Props) {
-  const { mutate } = useProfile();
+  const { mutate } = useDaemons();
   const isolate = useDaemon();
   const { isOpen, onClose, onOpen } = useDisclosure();
 
