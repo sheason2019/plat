@@ -7,6 +7,7 @@ import {
   Divider,
 } from "@nextui-org/react";
 import { DaemonScope } from "../../../models/core";
+import DeleteDaemonButton from "./delete-daemon-button";
 
 interface Props {
   scope: DaemonScope;
@@ -29,7 +30,7 @@ export default function IsolateCard({ scope }: Props) {
         </div>
       </CardBody>
       <CardFooter>
-        <Button isIconOnly></Button>
+        <DeleteDaemonButton publicKey={scope.daemon.public_key} />
         <div className="flex-1" />
         <Button>进入</Button>
       </CardFooter>
