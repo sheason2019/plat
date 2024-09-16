@@ -3369,6 +3369,7 @@ dependencies = [
  "bundler",
  "clap",
  "plugin",
+ "serde_json",
  "tokio",
 ]
 

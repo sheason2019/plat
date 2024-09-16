@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{collections::HashMap, fs, ops::DerefMut, path::PathBuf, sync::Arc};
 
 use daemon::{daemon::PluginDaemon, service::PluginDaemonService};
 use tokio::sync::Mutex;
@@ -9,7 +9,7 @@ pub struct DaemonAsset {
     pub path: PathBuf,
     pub plugins: Mutex<HashMap<String, PluginAsset>>,
     pub plugin_daemon: PluginDaemon,
-    plugin_daemon_service: Mutex<Option<PluginDaemonService>>,
+    plugin_daemon_service: Mutex<Option<Arc<PluginDaemonService>>>,
 }
 
 impl DaemonAsset {
@@ -27,7 +27,8 @@ impl DaemonAsset {
         let plugins_dir = daemon_asset.path.join("plugins");
         if plugins_dir.exists() {
             for entry in plugins_dir.read_dir()? {
-                let plugin_asset = PluginAsset::new_from_path(entry?.path()).await?;
+                let plugin_asset =
+                    PluginAsset::new_from_path(entry?.path(), &daemon_asset.plugin_daemon).await?;
                 daemon_asset
                     .plugins
                     .lock()
@@ -39,11 +40,34 @@ impl DaemonAsset {
         Ok(daemon_asset)
     }
 
-    async fn up(&self) -> anyhow::Result<()> {
-        todo!()
+    pub async fn up(&self) -> anyhow::Result<()> {
+        let mut plugin_daemon_service_option = self.plugin_daemon_service.lock().await;
+        if plugin_daemon_service_option.is_some() {
+            return Ok(());
+        }
+
+        let plugin_daemon_service = PluginDaemonService::new(self.plugin_daemon.clone(), 0).await?;
+        plugin_daemon_service_option.replace(plugin_daemon_service);
+
+        for plugin in self.plugins.lock().await.values() {
+            plugin.up().await?;
+        }
+
+        Ok(())
     }
 
-    async fn down(&self) -> anyhow::Result<()> {
-        todo!()
+    pub async fn down(&self) -> anyhow::Result<()> {
+        for plugin in self.plugins.lock().await.values() {
+            plugin.down().await?;
+        }
+
+        let mut lock = self.plugin_daemon_service.lock().await;
+        if lock.is_some() {
+            lock.as_ref().unwrap().stop().await?;
+        }
+
+        *lock.deref_mut() = None;
+
+        Ok(())
     }
 }

@@ -43,4 +43,20 @@ impl HostAssets {
 
         Ok(host_assets)
     }
+
+    pub async fn up(&self) -> anyhow::Result<()> {
+        for daemon in self.daemons.lock().await.values() {
+            daemon.up().await?;
+        }
+
+        Ok(())
+    }
+
+    pub async fn down(&self) -> anyhow::Result<()> {
+        for daemon in self.daemons.lock().await.values() {
+            daemon.down().await?;
+        }
+
+        Ok(())
+    }
 }

@@ -1,7 +1,9 @@
+use std::fs;
+
 use anyhow::anyhow;
 use bundler::{tarer::Tarer, untarer::Untarer};
 use clap::{Parser, Subcommand};
-use plugin::PluginService;
+use plugin::{models::PluginConfig, PluginService};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -65,14 +67,13 @@ impl Cli {
                     return Err(anyhow!("未找到指定的 Plugin 配置文件"));
                 }
 
+                let mut plugin_config: PluginConfig =
+                    serde_json::from_slice(&fs::read(&plugin_path)?)?;
+                plugin_config.daemon_address = Some(daemon_address.clone());
+                plugin_config.regist_address = regist_address.clone();
+
                 // 启动 Plugin
-                let service = PluginService::new(
-                    plugin_path,
-                    daemon_address.clone(),
-                    regist_address.clone(),
-                    port,
-                )
-                .await?;
+                let service = PluginService::new(plugin_path, plugin_config, port).await?;
 
                 println!("start plugin success:");
                 println!("plugin address: {}", service.addr().unwrap());

@@ -4,6 +4,7 @@ use std::sync::Arc;
 use http_body_util::{BodyExt, Full};
 use hyper::server::conn::http1;
 use hyper::{Method, Response};
+use models::PluginConfig;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast::Sender;
 use wasi::PlatServer;
@@ -23,10 +24,12 @@ pub struct PluginService {
 impl PluginService {
     pub async fn new(
         plugin_config_path: PathBuf,
-        daemon_address: String,
-        regist_address: Option<String>,
+        plugin_config: PluginConfig,
         port: u16,
     ) -> anyhow::Result<Self> {
+        let daemon_address = plugin_config.daemon_address.unwrap();
+        let regist_address = plugin_config.regist_address;
+
         let tcp_listener = TcpListener::bind(format!("127.0.0.1:{}", port)).await?;
 
         let mut plat_server = PlatServer::new(plugin_config_path, daemon_address.clone())?;
