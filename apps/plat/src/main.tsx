@@ -16,7 +16,7 @@ const router = createBrowserRouter([
     element: <IndexPage />,
   },
   {
-    path: "/:daemonPublicKey",
+    path: "/daemon",
     element: <DaemonPage />,
   },
 ]);

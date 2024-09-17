@@ -14,6 +14,7 @@ use futures::{SinkExt, StreamExt};
 use plugin::models::PluginConfig;
 use serde_json::{json, Value};
 use tokio::sync::{broadcast::Sender, Mutex};
+use tower_http::services::{ServeDir, ServeFile};
 use typings::{DaemonChannelType, SignRequest, VerifyRequest, VerifyResponse};
 
 mod typings;
@@ -47,11 +48,15 @@ impl PluginDaemonService {
         tokio::task::spawn({
             let service = service.clone();
             async move {
+                let serve_dir =
+                    ServeDir::new("assets").not_found_service(ServeFile::new("assets/index.html"));
+
                 let app = Router::new()
                     .route("/api", get(root_handler))
                     .route("/api/regist", get(regist_plugin_handler))
                     .route("/api/sig", post(sign_handler))
                     .route("/api/verify", post(verify_handler))
+                    .fallback_service(serve_dir)
                     .with_state(service.clone());
                 axum::serve(tcp_listener, app)
                     .with_graceful_shutdown(async move {
@@ -72,6 +77,11 @@ impl PluginDaemonService {
 
     pub async fn stop(&self) -> anyhow::Result<()> {
         self.channel.send(DaemonChannelType::Terminate)?;
+        Ok(())
+    }
+
+    pub async fn wait(&self) -> anyhow::Result<()> {
+        self.channel.subscribe().recv().await?;
         Ok(())
     }
 }

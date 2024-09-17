@@ -1,6 +1,9 @@
 use std::{collections::HashMap, fs, ops::DerefMut, path::PathBuf, sync::Arc};
 
-use daemon::{daemon::PluginDaemon, service::PluginDaemonService};
+use daemon::{
+    daemon::{PluginDaemon, PluginDaemonVariant},
+    service::PluginDaemonService,
+};
 use tokio::sync::Mutex;
 
 use super::plugin_asset::PluginAsset;
@@ -41,16 +44,25 @@ impl DaemonAsset {
     }
 
     pub async fn get_plugin_daemon(&self) -> PluginDaemon {
-        self.plugin_daemon_service
-            .lock()
-            .await
-            .as_ref()
-            .unwrap()
-            .plugin_daemon
-            .clone()
+        match self.plugin_daemon.variant {
+            PluginDaemonVariant::Local => self
+                .plugin_daemon_service
+                .lock()
+                .await
+                .as_ref()
+                .unwrap()
+                .plugin_daemon
+                .clone(),
+            _ => self.plugin_daemon.clone(),
+        }
     }
 
     pub async fn up(&self) -> anyhow::Result<()> {
+        match self.plugin_daemon.variant {
+            PluginDaemonVariant::Local => (),
+            _ => return Ok(()),
+        }
+
         let mut plugin_daemon_service_option = self.plugin_daemon_service.lock().await;
         if plugin_daemon_service_option.is_some() {
             return Ok(());

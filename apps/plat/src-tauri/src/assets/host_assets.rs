@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
-use daemon::daemon::PluginDaemon;
+use daemon::daemon::{PluginDaemon, PluginDaemonVariant};
 use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex;
 
@@ -62,7 +62,14 @@ impl HostAssets {
     }
 
     pub async fn append_daemon(&self, plugin_daemon: PluginDaemon) -> anyhow::Result<()> {
-        let daemon_dir = self.path.join("daemons").join(&plugin_daemon.public_key);
+        let daemon_dir = match plugin_daemon.variant {
+            PluginDaemonVariant::Local => self.path.join("daemons").join(&plugin_daemon.public_key),
+            _ => self
+                .path
+                .join("daemons")
+                .join(urlencoding::encode(plugin_daemon.address.as_ref().unwrap()).as_ref()),
+        };
+
         if !daemon_dir.exists() {
             fs::create_dir_all(&daemon_dir)?;
         }
@@ -88,6 +95,7 @@ impl HostAssets {
             None => (),
             Some(asset) => {
                 asset.down().await?;
+                fs::remove_dir_all(asset.path)?;
             }
         }
 

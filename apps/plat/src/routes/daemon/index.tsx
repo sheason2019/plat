@@ -1,21 +1,16 @@
-import { useParams } from "react-router-dom";
-import useDaemonScopes from "../../hooks/use-daemons";
+import { useSearchParams } from "react-router-dom";
 
 export default function DaemonPage() {
-  const { data: scopes } = useDaemonScopes();
-  const { daemonPublicKey } = useParams();
+  const [search, setSearch] = useSearchParams();
+  const address = search.get("address");
 
-  const scope = scopes.find(
-    (item) => item.daemon.public_key === daemonPublicKey
-  );
-
-  if (!scope) {
+  if (!address) {
     return (
       <div className="w-full h-full flex justify-center items-center">
-        无法获取 Daemon Scope 信息
+        无效 Daemon 地址
       </div>
     );
   }
 
-  return <iframe src={scope.daemon.address} className="w-full h-full" />;
+  return <iframe src={address} className="w-full h-full" />;
 }

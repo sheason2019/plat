@@ -1,8 +1,9 @@
-use std::fs;
+use std::{fs, path::PathBuf};
 
 use anyhow::anyhow;
 use bundler::{tarer::Tarer, untarer::Untarer};
 use clap::{Parser, Subcommand};
+use daemon::{daemon::PluginDaemon, service::PluginDaemonService};
 use plugin::{models::PluginConfig, PluginService};
 
 #[derive(Parser)]
@@ -33,6 +34,14 @@ enum Commands {
         #[arg(short, long)]
         port: Option<u16>,
     },
+    Daemon {
+        #[arg(short, long)]
+        path: Option<PathBuf>,
+        #[arg(short, long)]
+        port: Option<u16>,
+        #[arg(short, long)]
+        ephemeral: Option<bool>,
+    },
 }
 
 impl Cli {
@@ -43,6 +52,41 @@ impl Cli {
             }
             Some(Commands::Untar { path, output }) => {
                 Untarer::new(path.clone()).untar(output.clone()).unwrap()
+            }
+            Some(Commands::Daemon {
+                path,
+                port,
+                ephemeral,
+            }) => {
+                let port = match port.as_ref() {
+                    Some(val) => val.clone(),
+                    None => 0,
+                };
+
+                if ephemeral.is_some() {
+                    if ephemeral.unwrap() {
+                        let daemon = PluginDaemon::new_random()?;
+                        let service = PluginDaemonService::new(daemon, port).await?;
+                        println!("start daemon success:");
+                        println!(
+                            "daemon address: {}",
+                            service.plugin_daemon.address.as_ref().unwrap()
+                        );
+                        service.wait().await?;
+                        return Ok(());
+                    }
+                }
+
+                let path = path.as_ref().unwrap();
+                let daemon: PluginDaemon = serde_json::from_slice(&fs::read(path)?)?;
+                let service = PluginDaemonService::new(daemon, port).await?;
+                println!("start daemon success:");
+                println!(
+                    "daemon address: {}",
+                    service.plugin_daemon.address.as_ref().unwrap()
+                );
+                service.wait().await?;
+                return Ok(());
             }
             Some(Commands::Serve {
                 path,

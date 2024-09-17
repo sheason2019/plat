@@ -22,7 +22,17 @@ pub struct PluginDaemon {
 }
 
 impl PluginDaemon {
-    pub fn new() -> anyhow::Result<Self> {
+    pub const fn default() -> Self {
+        PluginDaemon {
+            public_key: String::new(),
+            private_key: String::new(),
+            password: String::new(),
+            variant: PluginDaemonVariant::Local,
+            address: None,
+        }
+    }
+
+    pub fn new_random() -> anyhow::Result<Self> {
         let rng = rand::SystemRandom::new();
         let pkcs8_bytes = signature::Ed25519KeyPair::generate_pkcs8(&rng).unwrap();
 
@@ -35,7 +45,7 @@ impl PluginDaemon {
         let daemon = PluginDaemon {
             public_key,
             private_key,
-            password: "TODO".to_string(),
+            password: "".to_string(),
             variant: PluginDaemonVariant::Local,
             address: None,
         };
