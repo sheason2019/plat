@@ -5,6 +5,7 @@ import {
   CardFooter,
   CardHeader,
   Divider,
+  Link,
 } from "@nextui-org/react";
 import { DaemonScope } from "../../../models/core";
 import DeleteDaemonButton from "./delete-daemon-button";
@@ -17,7 +18,7 @@ export default function IsolateCard({ scope }: Props) {
   return (
     <Card>
       <CardHeader>
-        <p className="font-mono font-bold tracking-wide w-full overflow-hidden text-ellipsis">
+        <p className="font-mono font-bold tracking-wide w-full overflow-hidden text-ellipsis whitespace-nowrap">
           {scope.daemon.public_key}
         </p>
       </CardHeader>
@@ -32,7 +33,9 @@ export default function IsolateCard({ scope }: Props) {
       <CardFooter>
         <DeleteDaemonButton publicKey={scope.daemon.public_key} />
         <div className="flex-1" />
-        <Button>进入</Button>
+        <Button color="primary" as={Link} href={`/${scope.daemon.public_key}`}>
+          进入
+        </Button>
       </CardFooter>
     </Card>
   );

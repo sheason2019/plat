@@ -8,11 +8,16 @@ import "@fontsource-variable/noto-sans-sc";
 import "./main.css";
 import IndexPage from "./routes";
 import PlatProvider from "./components/plat-provider";
+import DaemonPage from "./routes/daemon";
 
 const router = createBrowserRouter([
   {
     path: "/",
     element: <IndexPage />,
+  },
+  {
+    path: "/:daemonPublicKey",
+    element: <DaemonPage />,
   },
 ]);
 
