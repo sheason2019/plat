@@ -144,26 +144,18 @@ impl PlatServer {
                 let mut sub = tx.subscribe();
                 loop {
                     tokio::select! {
-                        _ = tokio::time::sleep(Duration::from_secs(4)) => {
-                            write.send(Message::Ping(Vec::new())).await.unwrap();
-                        },
-                        _ = sub.recv() => break,
-                    }
-                }
-                let _ = tx.send(());
-            }
-        });
-        tokio::task::spawn({
-            let tx = tx.clone();
-            async move {
-                let mut sub = tx.subscribe();
-                loop {
-                    tokio::select! {
                         _ = tokio::time::sleep(Duration::from_secs(10)) => break,
                         _ = sub.recv() => break,
                         recv = read.next() => {
                             match recv {
-                                Some(_) => (),
+                                Some(msg) => {
+                                    match msg.unwrap() {
+                                        Message::Ping(inner) => {
+                                            write.send(Message::Pong(inner)).await.unwrap();
+                                        },
+                                        _ => (),
+                                    }
+                                },
                                 None => break,
                             }
                         },

@@ -1,22 +1,20 @@
-use std::{borrow::Cow, collections::HashMap, ops::Deref, sync::Arc, time::Duration};
+use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 use axum::{
-    extract::{
-        ws::{CloseFrame, Message},
-        State, WebSocketUpgrade,
-    },
+    extract::State,
     http::StatusCode,
-    response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
-use futures::{SinkExt, StreamExt};
+use handlers::{connect_handler, regist_handler};
 use plugin::models::PluginConfig;
 use serde_json::{json, Value};
 use tokio::sync::{broadcast::Sender, Mutex};
 use tower_http::services::{ServeDir, ServeFile};
 use typings::{DaemonChannelType, SignRequest, VerifyRequest, VerifyResponse};
 
+mod connection;
+mod handlers;
 mod typings;
 
 use crate::daemon::{PluginDaemon, SignBox};
@@ -26,6 +24,7 @@ pub struct PluginDaemonService {
     pub registed_plugins: Arc<Mutex<HashMap<String, PluginConfig>>>,
 
     channel: Sender<DaemonChannelType>,
+    connections: Mutex<HashMap<String, ()>>,
 }
 
 impl PluginDaemonService {
@@ -42,6 +41,7 @@ impl PluginDaemonService {
             plugin_daemon,
             registed_plugins: Arc::new(Mutex::new(HashMap::new())),
             channel: tx,
+            connections: Mutex::new(HashMap::new()),
         };
         let service = Arc::new(service);
 
@@ -53,9 +53,10 @@ impl PluginDaemonService {
 
                 let app = Router::new()
                     .route("/api", get(root_handler))
-                    .route("/api/regist", get(regist_plugin_handler))
+                    .route("/api/regist", get(regist_handler))
                     .route("/api/sig", post(sign_handler))
                     .route("/api/verify", post(verify_handler))
+                    .route("/api/connect", get(connect_handler))
                     .fallback_service(serve_dir)
                     .with_state(service.clone());
                 axum::serve(tcp_listener, app)
@@ -96,98 +97,6 @@ async fn root_handler(
         "plugins": service.registed_plugins.lock().await.deref(),
     });
     (StatusCode::OK, Json(out))
-}
-
-async fn regist_plugin_handler(
-    State(service): State<Arc<PluginDaemonService>>,
-    ws: WebSocketUpgrade,
-) -> impl IntoResponse {
-    ws.on_upgrade(|socket| async move {
-        let (mut write, mut read) = socket.split();
-
-        write
-            .send(Message::Text("Ready".to_string()))
-            .await
-            .unwrap();
-
-        let data = match read.next().await.unwrap().unwrap() {
-            Message::Text(data) => data,
-            _ => panic!("Message failed"),
-        };
-        let plugin_config: PluginConfig = serde_json::from_str(&data).unwrap();
-        let name = plugin_config.name.clone();
-
-        if service.registed_plugins.lock().await.contains_key(&name) {
-            write
-                .send(Message::Close(Some(CloseFrame {
-                    code: 1000,
-                    reason: Cow::from("已存在相同名称的 Plugin"),
-                })))
-                .await
-                .unwrap();
-            return;
-        }
-
-        service
-            .registed_plugins
-            .lock()
-            .await
-            .insert(name.clone(), plugin_config);
-
-        let (tx, _rx) = tokio::sync::broadcast::channel::<()>(4);
-
-        let recv_handler = tokio::task::spawn({
-            let tx = tx.clone();
-            async move {
-                let mut sub = tx.subscribe();
-                loop {
-                    tokio::select! {
-                        message_option = read.next() => {
-                            match message_option {
-                                None => break,
-                                Some(message_result) => {
-                                    match message_result {
-                                        Err(_e) => break,
-                                        Ok(message) => {
-                                            match message {
-                                                Message::Close(_) => break,
-                                                _ => (),
-                                            }
-                                        },
-                                    }
-                                },
-                            };
-                        },
-                        _ = tokio::time::sleep(Duration::from_secs(10)) => break,
-                        _ = sub.recv() => break,
-                    }
-                }
-
-                let _ = tx.send(());
-            }
-        });
-        let ping_handler = tokio::task::spawn({
-            let tx = tx.clone();
-            async move {
-                let mut sub = tx.subscribe();
-                loop {
-                    tokio::select! {
-                        _ = tokio::time::sleep(Duration::from_secs(4)) => {
-                            write.send(Message::Ping(Vec::new())).await.unwrap();
-                        },
-                        _ = sub.recv() => break,
-                    }
-                }
-
-                let _ = tx.send(());
-            }
-        });
-
-        let _ = recv_handler.await;
-        let _ = ping_handler.await;
-
-        service.registed_plugins.lock().await.remove(&name);
-    })
 }
 
 async fn sign_handler(
