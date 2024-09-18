@@ -6,8 +6,7 @@ import {
   ModalFooter,
   ModalHeader,
 } from "@nextui-org/react";
-import useDaemon from "../../hooks/core/use-daemon";
-import { Fragment } from "react/jsx-runtime";
+import { useMemo } from "react";
 
 interface Props {
   isOpen: boolean;
@@ -15,10 +14,17 @@ interface Props {
 }
 
 export default function DaemonControlModal({ isOpen, onClose }: Props) {
-  const daemon = useDaemon();
+  const fromOrigin = useMemo<string | null>(() => {
+    const url = new URL(location.href);
+    const fromOrigin = url.searchParams.get("fromOrigin");
+    if (!fromOrigin) return null;
 
-  const plugins =
-    daemon?.registed_plugins && Object.values(daemon.registed_plugins);
+    return decodeURIComponent(fromOrigin);
+  }, []);
+
+  const handleExit = () => {
+    if (fromOrigin) window.parent.postMessage({ type: "exit" }, fromOrigin);
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
@@ -26,38 +32,10 @@ export default function DaemonControlModal({ isOpen, onClose }: Props) {
         <ModalHeader>
           <div className="flex items-baseline">
             <p>菜单</p>
-            <p className="text-sm text-gray-500 ml-3">
-              账号 Daemon： {daemon?.daemon_address}
-            </p>
+            <p className="text-sm text-gray-500 ml-3">账号 Daemon：</p>
           </div>
         </ModalHeader>
-        <ModalBody>
-          {plugins?.map((plugin) => (
-            <Fragment key={plugin.config.name}>
-              {plugin.config.entries.map((entry) => (
-                <Button
-                  key={entry.label}
-                  startContent={
-                    entry.icon.length > 0 ? (
-                      <img className="w-6 h-6" src={plugin.addr + entry.icon} />
-                    ) : (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="currentColor"
-                        viewBox="0 0 16 16"
-                        className="w-6 h-6"
-                      >
-                        <path d="M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5 8 5.961 14.154 3.5 8.186 1.113zM15 4.239l-6.5 2.6v7.922l6.5-2.6V4.24zM7.5 14.762V6.838L1 4.239v7.923l6.5 2.6zM7.443.184a1.5 1.5 0 0 1 1.114 0l7.129 2.852A.5.5 0 0 1 16 3.5v8.662a1 1 0 0 1-.629.928l-7.185 2.874a.5.5 0 0 1-.372 0L.63 13.09a1 1 0 0 1-.63-.928V3.5a.5.5 0 0 1 .314-.464L7.443.184z" />
-                      </svg>
-                    )
-                  }
-                >
-                  {entry.label}
-                </Button>
-              ))}
-            </Fragment>
-          ))}
-        </ModalBody>
+        <ModalBody></ModalBody>
         <ModalFooter>
           <Button
             startContent={
@@ -72,6 +50,7 @@ export default function DaemonControlModal({ isOpen, onClose }: Props) {
                 <path d="M7.096 7.828a.5.5 0 0 0 .707-.707L2.707 2.025h2.768a.5.5 0 1 0 0-1H1.5a.5.5 0 0 0-.5.5V5.5a.5.5 0 0 0 1 0V2.732l5.096 5.096Z" />
               </svg>
             }
+            onClick={handleExit}
           >
             切换账号
           </Button>

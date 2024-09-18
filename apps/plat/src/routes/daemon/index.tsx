@@ -1,8 +1,32 @@
-import { useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function DaemonPage() {
-  const [search, setSearch] = useSearchParams();
-  const address = search.get("address");
+  const [search] = useSearchParams();
+  const navigate = useNavigate();
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const address = useMemo(() => {
+    const address = search.get("address");
+    if (!address) return null;
+
+    const addressUrl = new URL(decodeURIComponent(address));
+    addressUrl.searchParams.set(
+      "fromOrigin",
+      encodeURIComponent(location.origin)
+    );
+    return addressUrl;
+  }, [search.get("address")]);
+
+  useEffect(() => {
+    const postMessageHandler = (e: MessageEvent) => {
+      if (e.data?.type === "exit") {
+        return navigate("/");
+      }
+    };
+    window.addEventListener("message", postMessageHandler);
+    return () => window.removeEventListener("message", postMessageHandler);
+  }, []);
 
   if (!address) {
     return (
@@ -12,5 +36,11 @@ export default function DaemonPage() {
     );
   }
 
-  return <iframe src={address} className="w-full h-full" />;
+  return (
+    <iframe
+      ref={iframeRef}
+      src={address.toString()}
+      className="w-full h-full"
+    />
+  );
 }
