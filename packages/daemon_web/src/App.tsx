@@ -1,11 +1,18 @@
 import { NextUIProvider } from "@nextui-org/react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import DaemonLayout from "./routes/layout";
 import IndexPage from "./routes";
 
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <IndexPage />,
+    element: <DaemonLayout />,
+    children: [
+      {
+        path: "",
+        element: <IndexPage />,
+      },
+    ],
   },
 ]);
 
