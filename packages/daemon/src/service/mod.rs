@@ -6,6 +6,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use connection::Connection;
 use handlers::{connect_handler, regist_handler};
 use plugin::models::PluginConfig;
 use serde_json::{json, Value};
@@ -22,9 +23,8 @@ use crate::daemon::{PluginDaemon, SignBox};
 pub struct PluginDaemonService {
     pub plugin_daemon: PluginDaemon,
     pub registed_plugins: Arc<Mutex<HashMap<String, PluginConfig>>>,
-
     channel: Sender<DaemonChannelType>,
-    connections: Mutex<HashMap<String, ()>>,
+    connections: Mutex<HashMap<String, Arc<Connection>>>,
 }
 
 impl PluginDaemonService {
