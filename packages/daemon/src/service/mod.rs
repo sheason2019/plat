@@ -103,14 +103,12 @@ async fn sign_handler(
     State(state): State<Arc<PluginDaemonService>>,
     Json(payload): Json<SignRequest>,
 ) -> Result<Json<SignBox>, (StatusCode, String)> {
-    // let sign = state
-    //     .daemon
-    //     .sign(payload.base64_url_data_string.clone())
-    //     .expect("create signature failed");
+    let sign = state
+        .plugin_daemon
+        .sign(payload.base64_url_data_string.clone())
+        .expect("create signature failed");
 
-    // Ok(Json(sign))
-
-    todo!("校验签名");
+    Ok(Json(sign))
 }
 
 async fn verify_handler(
@@ -121,9 +119,12 @@ async fn verify_handler(
         public_key: payload.public_key,
         signature: payload.signature,
     };
-    let success = sign_box
-        .verify(payload.base64_url_data_string)
-        .expect("verify signature failed");
+    let result = sign_box.verify(payload.base64_url_data_string);
 
-    (StatusCode::OK, Json(VerifyResponse { success }))
+    (
+        StatusCode::OK,
+        Json(VerifyResponse {
+            success: result.is_ok(),
+        }),
+    )
 }
