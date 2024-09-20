@@ -9,12 +9,11 @@ export default function DaemonPage() {
   const address = useMemo(() => {
     const address = search.get("address");
     if (!address) return null;
+    const password = search.get("password");
 
     const addressUrl = new URL(decodeURIComponent(address));
-    addressUrl.searchParams.set(
-      "fromOrigin",
-      encodeURIComponent(location.origin)
-    );
+    addressUrl.searchParams.set("fromOrigin", location.origin);
+    addressUrl.searchParams.set("password", password ?? "");
     return addressUrl;
   }, [search.get("address")]);
 

@@ -9,12 +9,21 @@ import {
 } from "@nextui-org/react";
 import { DaemonScope, DaemonVariant } from "../../../models/core";
 import DeleteDaemonButton from "./delete-daemon-button";
+import { useMemo } from "react";
 
 interface Props {
   scope: DaemonScope;
 }
 
-export default function IsolateCard({ scope }: Props) {
+export default function DaemonCard({ scope }: Props) {
+  const link = useMemo(() => {
+    const href = new URL(location.origin + "/daemon");
+    href.searchParams.set("address", scope.daemon.address ?? "");
+    href.searchParams.set("password", scope.daemon.password);
+
+    return href.toString();
+  }, [scope]);
+
   return (
     <Card>
       <CardHeader>
@@ -37,13 +46,7 @@ export default function IsolateCard({ scope }: Props) {
       <CardFooter>
         <DeleteDaemonButton publicKey={scope.daemon.public_key} />
         <div className="flex-1" />
-        <Button
-          color="primary"
-          as={Link}
-          href={`/daemon?address=${encodeURIComponent(
-            scope.daemon.address ?? ""
-          )}`}
-        >
+        <Button color="primary" as={Link} href={link}>
           进入
         </Button>
       </CardFooter>

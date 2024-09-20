@@ -2,13 +2,23 @@ import { PropsWithChildren, useEffect, useRef, useState } from "react";
 import { x25519 } from "@noble/curves/ed25519";
 import { sha3_256 } from "@noble/hashes/sha3";
 import { base64url } from "@scure/base";
+import ConnectionPending from "./pending";
+import { ConnectionStatus } from "./typings";
+import ConnectionFailed from "./failed";
+import { useSearchParams } from "react-router-dom";
 
 export default function ConnectionProvider({ children }: PropsWithChildren) {
-  const [isOk, setIsOk] = useState(false);
+  const [search] = useSearchParams();
+  const [status, setStatus] = useState(ConnectionStatus.Pending);
+
+  const [inputPassword, setInputPassword] = useState<
+    ((pswd: string) => void) | null
+  >(null);
+
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    setIsOk(false);
+    setStatus(ConnectionStatus.Pending);
     let sequence = 0;
 
     const ws = new WebSocket("/api/connect");
@@ -20,7 +30,22 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
 
       const sharedSecret = x25519.getSharedSecret(privKey, pubKey);
 
-      const password = "TODO";
+      const passwordPromise = new Promise<string>((res) => {
+        const password: string | null =
+          search.get("password") ?? sessionStorage.getItem("password");
+
+        if (password !== null) {
+          return res(password);
+        } else {
+          setInputPassword(() => (pswd: string) => {
+            sessionStorage.setItem("password", pswd);
+            res(pswd);
+            setInputPassword(null);
+          });
+        }
+      });
+
+      const password = await passwordPromise;
       const passwordBuf = new TextEncoder().encode(password);
       const passwordHash = sha3_256
         .create()
@@ -38,15 +63,15 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
 
     const handleReceiveResult = async (result: string) => {
       if (result === "OK") {
-        return setIsOk(true);
+        return setStatus(ConnectionStatus.Success);
       }
 
       ws.close();
-      setIsOk(false);
+      sessionStorage.removeItem("password");
+      return setStatus(ConnectionStatus.Failed);
     };
 
     ws.addEventListener("message", async (e) => {
-      console.log("message", e);
       switch (sequence) {
         case 0:
           await handleReceivePublicKey(e.data);
@@ -66,12 +91,16 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
     return () => {
       ws.close();
       wsRef.current = null;
-      setIsOk(false);
+      setStatus(ConnectionStatus.Failed);
     };
   }, []);
 
-  if (!isOk) {
-    return null;
+  if (status === ConnectionStatus.Pending) {
+    return <ConnectionPending inputPassword={inputPassword} />;
+  }
+
+  if (status === ConnectionStatus.Failed) {
+    return <ConnectionFailed />;
   }
 
   return <>{children}</>;
