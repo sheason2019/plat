@@ -10,14 +10,14 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 
 interface Props {
-  publicKey: string;
+  daemonKey: string;
 }
 
-export default function DeleteDaemonButton({ publicKey }: Props) {
+export default function DeleteDaemonButton({ daemonKey }: Props) {
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   const handleDelete = async () => {
-    await invoke("remove_daemon", { publicKey });
+    await invoke("remove_daemon", { daemonKey });
     onClose();
   };
 

@@ -6,9 +6,9 @@ use crate::typings::HostState;
 pub async fn remove_daemon(
     state: HostState<'_>,
     app_handle: tauri::AppHandle,
-    public_key: &str,
+    daemon_key: &str,
 ) -> Result<(), ()> {
-    match remove_daemon_inner(state, app_handle, public_key).await {
+    match remove_daemon_inner(state, app_handle, daemon_key).await {
         Ok(val) => Ok(val),
         Err(e) => {
             println!("remove daemons error: {}", e);
@@ -20,11 +20,11 @@ pub async fn remove_daemon(
 async fn remove_daemon_inner(
     state: HostState<'_>,
     app_handle: tauri::AppHandle,
-    public_key: &str,
+    daemon_key: &str,
 ) -> anyhow::Result<()> {
     state
         .host_assets
-        .delete_daemon(public_key.to_string())
+        .delete_daemon(daemon_key.to_string())
         .await?;
     app_handle.emit("update-daemons", ())?;
 

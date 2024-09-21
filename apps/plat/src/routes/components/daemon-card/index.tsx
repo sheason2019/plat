@@ -10,6 +10,7 @@ import {
 import { DaemonScope, DaemonVariant } from "../../../models/core";
 import DeleteDaemonButton from "./delete-daemon-button";
 import { useMemo } from "react";
+import EditDaemonButton from "./edit-daemon-button";
 
 interface Props {
   scope: DaemonScope;
@@ -24,13 +25,16 @@ export default function DaemonCard({ scope }: Props) {
     return href.toString();
   }, [scope]);
 
+  const daemonKey =
+    scope.daemon.variant === DaemonVariant.Local
+      ? scope.daemon.public_key
+      : scope.daemon.address;
+
   return (
     <Card>
       <CardHeader>
         <p className="font-mono font-bold tracking-wide w-full overflow-hidden text-ellipsis whitespace-nowrap">
-          {scope.daemon.variant === DaemonVariant.Local
-            ? scope.daemon.public_key
-            : scope.daemon.address}
+          {daemonKey}
         </p>
       </CardHeader>
       <Divider />
@@ -44,7 +48,8 @@ export default function DaemonCard({ scope }: Props) {
         </div>
       </CardBody>
       <CardFooter>
-        <DeleteDaemonButton publicKey={scope.daemon.public_key} />
+        <DeleteDaemonButton daemonKey={scope.daemon.public_key} />
+        <EditDaemonButton />
         <div className="flex-1" />
         <Button color="primary" as={Link} href={link}>
           进入

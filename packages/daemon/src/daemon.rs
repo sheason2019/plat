@@ -31,6 +31,13 @@ impl PluginDaemon {
         }
     }
 
+    pub fn daemon_key(&self) -> String {
+        match self.variant {
+            PluginDaemonVariant::Local => self.public_key.clone(),
+            _ => self.address.as_ref().unwrap().clone(),
+        }
+    }
+
     pub fn new_random() -> anyhow::Result<Self> {
         let mut csprng = OsRng;
         let signing_key: SigningKey = SigningKey::generate(&mut csprng);

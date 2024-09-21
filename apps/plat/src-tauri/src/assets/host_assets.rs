@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
-use daemon::daemon::{PluginDaemon, PluginDaemonVariant};
+use daemon::daemon::PluginDaemon;
 use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex;
 
@@ -62,13 +62,10 @@ impl HostAssets {
     }
 
     pub async fn append_daemon(&self, plugin_daemon: PluginDaemon) -> anyhow::Result<()> {
-        let daemon_dir = match plugin_daemon.variant {
-            PluginDaemonVariant::Local => self.path.join("daemons").join(&plugin_daemon.public_key),
-            _ => self
-                .path
-                .join("daemons")
-                .join(urlencoding::encode(plugin_daemon.address.as_ref().unwrap()).as_ref()),
-        };
+        let daemon_dir = self
+            .path
+            .join("daemons")
+            .join(urlencoding::encode(plugin_daemon.daemon_key().as_str()).as_ref());
 
         if !daemon_dir.exists() {
             fs::create_dir_all(&daemon_dir)?;
@@ -90,8 +87,8 @@ impl HostAssets {
         Ok(())
     }
 
-    pub async fn delete_daemon(&self, public_key: String) -> anyhow::Result<()> {
-        match self.daemons.lock().await.remove(&public_key) {
+    pub async fn delete_daemon(&self, daemon_key: String) -> anyhow::Result<()> {
+        match self.daemons.lock().await.remove(&daemon_key) {
             None => (),
             Some(asset) => {
                 asset.down().await?;
