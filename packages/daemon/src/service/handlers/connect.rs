@@ -2,11 +2,14 @@ use base64::prelude::*;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_256};
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 use x25519_dalek::{EphemeralSecret, PublicKey};
 
 use axum::{
-    extract::{ws::Message, State, WebSocketUpgrade},
+    extract::{
+        ws::{CloseFrame, Message},
+        State, WebSocketUpgrade,
+    },
     response::IntoResponse,
 };
 
@@ -32,7 +35,10 @@ pub async fn connect_handler(
                 Ok(val) => val,
                 Err(_) => {
                     socket
-                        .send(Message::Text("序列化 ConnectContent 失败".to_string()))
+                        .send(Message::Close(Some(CloseFrame {
+                            code: 1000,
+                            reason: Cow::from("序列化 ConnectContent 失败"),
+                        })))
                         .await
                         .unwrap();
                     return;
@@ -61,17 +67,17 @@ pub async fn connect_handler(
             .unwrap();
         if !compare_slice(&password_hash, &client_password_hash) {
             socket
-                .send(Message::Text("密码错误".to_string()))
+                .send(Message::Close(Some(CloseFrame {
+                    code: 1000,
+                    reason: Cow::from("密码验证失败"),
+                })))
                 .await
                 .unwrap();
             return;
         }
 
         // 创建 Connection
-        socket
-            .send(Message::Text("OK".to_string()))
-            .await
-            .unwrap();
+        socket.send(Message::Text("OK".to_string())).await.unwrap();
         let connection = Connection::new(socket, connect_public_key, shared_secret);
         let connection = Arc::new(connection);
 

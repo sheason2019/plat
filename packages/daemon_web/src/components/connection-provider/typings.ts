@@ -1,5 +1,5 @@
 export enum ConnectionStatus {
   Pending,
-  Success,
-  Failed,
+  Open,
+  Close,
 }

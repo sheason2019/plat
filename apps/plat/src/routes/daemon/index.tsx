@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function DaemonPage() {
@@ -6,16 +6,7 @@ export default function DaemonPage() {
   const navigate = useNavigate();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const address = useMemo(() => {
-    const address = search.get("address");
-    if (!address) return null;
-    const password = search.get("password");
-
-    const addressUrl = new URL(decodeURIComponent(address));
-    addressUrl.searchParams.set("fromOrigin", location.origin);
-    addressUrl.searchParams.set("password", password ?? "");
-    return addressUrl;
-  }, [search.get("address")]);
+  const address = new URL(decodeURIComponent(search.get("address")!));
 
   useEffect(() => {
     const postMessageHandler = (e: MessageEvent) => {
@@ -26,6 +17,26 @@ export default function DaemonPage() {
     window.addEventListener("message", postMessageHandler);
     return () => window.removeEventListener("message", postMessageHandler);
   }, []);
+
+  useEffect(() => {
+    const el = iframeRef.current;
+    if (!el) return;
+
+    const onload = () => {
+      el.contentWindow?.postMessage(
+        JSON.stringify({
+          type: "context",
+          payload: {
+            fromOrigin: location.origin,
+            password: search.get("password"),
+          },
+        }),
+        address.origin
+      );
+    };
+    el.addEventListener("load", onload);
+    return () => el.removeEventListener("load", onload);
+  }, [iframeRef]);
 
   if (!address) {
     return (

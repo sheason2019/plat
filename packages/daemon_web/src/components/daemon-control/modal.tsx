@@ -6,7 +6,7 @@ import {
   ModalFooter,
   ModalHeader,
 } from "@nextui-org/react";
-import { useMemo } from "react";
+import { useDaemonContext } from "../daemon-context/context";
 
 interface Props {
   isOpen: boolean;
@@ -14,16 +14,11 @@ interface Props {
 }
 
 export default function DaemonControlModal({ isOpen, onClose }: Props) {
-  const fromOrigin = useMemo<string | null>(() => {
-    const url = new URL(location.href);
-    const fromOrigin = url.searchParams.get("fromOrigin");
-    if (!fromOrigin) return null;
-
-    return decodeURIComponent(fromOrigin);
-  }, []);
+  const context = useDaemonContext();
 
   const handleExit = () => {
-    if (fromOrigin) window.parent.postMessage({ type: "exit" }, fromOrigin);
+    if (context?.fromOrigin)
+      window.parent.postMessage({ type: "exit" }, context?.fromOrigin);
   };
 
   return (

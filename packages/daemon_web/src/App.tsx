@@ -2,6 +2,7 @@ import { NextUIProvider } from "@nextui-org/react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import DaemonLayout from "./routes/layout";
 import IndexPage from "./routes";
+import DaemonContextProvider from "./components/daemon-context/provider";
 
 const router = createBrowserRouter([
   {
@@ -18,9 +19,11 @@ const router = createBrowserRouter([
 
 function App() {
   return (
-    <NextUIProvider>
-      <RouterProvider router={router} />
-    </NextUIProvider>
+    <DaemonContextProvider>
+      <NextUIProvider>
+        <RouterProvider router={router} />
+      </NextUIProvider>
+    </DaemonContextProvider>
   );
 }
 
