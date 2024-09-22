@@ -25,11 +25,17 @@ async fn update_daemon_password_inner(
     daemon_key: &str,
     new_password: &str,
 ) -> anyhow::Result<()> {
-    match state.host_assets.daemons.lock().await.get_mut(&daemon_key.to_string()) {
+    match state
+        .host_assets
+        .daemons
+        .lock()
+        .await
+        .get_mut(&daemon_key.to_string())
+    {
         None => return Err(anyhow!("未找到对应的 Daemon")),
         Some(daemon_asset) => {
             daemon_asset
-                .update_password(new_password.to_string())
+                .update_password(&app_handle, new_password.to_string())
                 .await?;
             app_handle.emit("update-daemons", ())?;
         }

@@ -39,9 +39,9 @@ impl HostAssets {
         Ok(host_assets)
     }
 
-    pub async fn up(&self) -> anyhow::Result<()> {
+    pub async fn up(&self, app_handle: &AppHandle) -> anyhow::Result<()> {
         for daemon in self.daemons.lock().await.values() {
-            daemon.up().await?;
+            daemon.up(app_handle).await?;
         }
 
         Ok(())
@@ -55,7 +55,11 @@ impl HostAssets {
         Ok(())
     }
 
-    pub async fn append_daemon(&self, plugin_daemon: PluginDaemon) -> anyhow::Result<()> {
+    pub async fn append_daemon(
+        &self,
+        app_handle: &AppHandle,
+        plugin_daemon: PluginDaemon,
+    ) -> anyhow::Result<()> {
         let daemon_dir = self
             .path
             .join("daemons")
@@ -71,7 +75,7 @@ impl HostAssets {
         )?;
 
         let daemon_asset = DaemonAsset::new_from_path(daemon_dir).await?;
-        daemon_asset.up().await?;
+        daemon_asset.up(app_handle).await?;
 
         self.daemons
             .lock()
