@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Deref, sync::Arc};
+use std::{collections::HashMap, ops::Deref, path::PathBuf, sync::Arc};
 
 use axum::{
     extract::State,
@@ -28,7 +28,7 @@ pub struct PluginDaemonService {
 }
 
 impl PluginDaemonService {
-    pub async fn new(daemon: PluginDaemon, port: u16) -> anyhow::Result<Arc<Self>> {
+    pub async fn new(daemon: PluginDaemon, path: PathBuf, port: u16) -> anyhow::Result<Arc<Self>> {
         let tcp_listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", port)).await?;
         let address = format!("http://{}", tcp_listener.local_addr()?.to_string());
 
@@ -48,8 +48,8 @@ impl PluginDaemonService {
         tokio::task::spawn({
             let service = service.clone();
             async move {
-                let serve_dir =
-                    ServeDir::new("assets").not_found_service(ServeFile::new("assets/index.html"));
+                let serve_dir = ServeDir::new(path.join("assets"))
+                    .not_found_service(ServeFile::new(path.join("assets/index.html")));
 
                 let app = Router::new()
                     .route("/api", get(root_handler))

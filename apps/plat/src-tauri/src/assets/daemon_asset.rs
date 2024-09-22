@@ -61,7 +61,8 @@ impl DaemonAsset {
             return Ok(());
         }
 
-        let plugin_daemon_service = PluginDaemonService::new(self.plugin_daemon.clone(), 0).await?;
+        let plugin_daemon_service =
+            PluginDaemonService::new(self.plugin_daemon.clone(), self.path.clone(), 0).await?;
         plugin_daemon_service_option.replace(plugin_daemon_service);
 
         for plugin in self.plugins.lock().await.values() {

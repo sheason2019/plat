@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{env, fs, path::PathBuf};
 
 use anyhow::anyhow;
 use bundler::{tarer::Tarer, untarer::Untarer};
@@ -66,7 +66,8 @@ impl Cli {
                 if ephemeral.is_some() {
                     if ephemeral.unwrap() {
                         let daemon = PluginDaemon::new_random()?;
-                        let service = PluginDaemonService::new(daemon, port).await?;
+                        let service =
+                            PluginDaemonService::new(daemon, env::current_dir()?, port).await?;
                         println!("start daemon success:");
                         println!(
                             "daemon address: {}",
@@ -79,7 +80,7 @@ impl Cli {
 
                 let path = path.as_ref().unwrap();
                 let daemon: PluginDaemon = serde_json::from_slice(&fs::read(path)?)?;
-                let service = PluginDaemonService::new(daemon, port).await?;
+                let service = PluginDaemonService::new(daemon, env::current_dir()?, port).await?;
                 println!("start daemon success:");
                 println!(
                     "daemon address: {}",
