@@ -27,7 +27,9 @@ export default function DaemonControlModal({ isOpen, onClose }: Props) {
         <ModalHeader>
           <div className="flex items-baseline">
             <p>菜单</p>
-            <p className="text-sm text-gray-500 ml-3">账号 Daemon：</p>
+            <p className="text-sm text-gray-500 ml-3">
+              账号 Daemon：
+            </p>
           </div>
         </ModalHeader>
         <ModalBody></ModalBody>

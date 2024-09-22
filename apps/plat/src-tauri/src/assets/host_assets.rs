@@ -30,13 +30,7 @@ impl HostAssets {
             for entry in daemons_dir.read_dir()? {
                 let daemon_asset = DaemonAsset::new_from_path(entry?.path()).await?;
                 host_assets.daemons.lock().await.insert(
-                    daemon_asset
-                        .path
-                        .file_name()
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
-                        .to_string(),
+                    daemon_asset.get_plugin_daemon().await.daemon_key(),
                     daemon_asset,
                 );
             }

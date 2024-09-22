@@ -44,16 +44,9 @@ impl DaemonAsset {
     }
 
     pub async fn get_plugin_daemon(&self) -> PluginDaemon {
-        match self.plugin_daemon.variant {
-            PluginDaemonVariant::Local => self
-                .plugin_daemon_service
-                .lock()
-                .await
-                .as_ref()
-                .unwrap()
-                .plugin_daemon
-                .clone(),
-            _ => self.plugin_daemon.clone(),
+        match self.plugin_daemon_service.lock().await.as_ref() {
+            Some(service) => service.plugin_daemon.clone(),
+            None => self.plugin_daemon.clone(),
         }
     }
 
@@ -89,6 +82,23 @@ impl DaemonAsset {
         }
 
         *lock.deref_mut() = None;
+
+        Ok(())
+    }
+
+    pub async fn update_password(&mut self, new_password: String) -> anyhow::Result<()> {
+        // 停止服务
+        self.down().await?;
+
+        // 修改 daemon
+        self.plugin_daemon.password = new_password;
+        fs::write(
+            self.path.join("daemon.json"),
+            serde_json::to_string(&self.plugin_daemon)?,
+        )?;
+
+        // 重启服务
+        self.up().await?;
 
         Ok(())
     }

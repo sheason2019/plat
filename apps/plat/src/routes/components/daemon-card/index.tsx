@@ -9,26 +9,16 @@ import {
 } from "@nextui-org/react";
 import { DaemonScope, DaemonVariant } from "../../../models/core";
 import DeleteDaemonButton from "./delete-daemon-button";
-import { useMemo } from "react";
 import EditDaemonButton from "./edit-daemon-button";
+import useDaemonScopes from "../../../hooks/use-daemons";
 
 interface Props {
   scope: DaemonScope;
 }
 
 export default function DaemonCard({ scope }: Props) {
-  const link = useMemo(() => {
-    const href = new URL(location.origin + "/daemon");
-    href.searchParams.set("address", scope.daemon.address ?? "");
-    href.searchParams.set("password", scope.daemon.password);
-
-    return href.toString();
-  }, [scope]);
-
-  const daemonKey =
-    scope.daemon.variant === DaemonVariant.Local
-      ? scope.daemon.public_key
-      : scope.daemon.address;
+  const { getDaemonKey } = useDaemonScopes();
+  const daemonKey = getDaemonKey(scope);
 
   return (
     <Card>
@@ -48,10 +38,12 @@ export default function DaemonCard({ scope }: Props) {
         </div>
       </CardBody>
       <CardFooter>
-        <DeleteDaemonButton daemonKey={scope.daemon.public_key} />
-        <EditDaemonButton />
+        <DeleteDaemonButton daemonKey={daemonKey!} />
+        {scope.daemon.variant === DaemonVariant.Remote && (
+          <EditDaemonButton daemonKey={daemonKey!} />
+        )}
         <div className="flex-1" />
-        <Button color="primary" as={Link} href={link}>
+        <Button color="primary" as={Link} href={`/daemon/${daemonKey}`}>
           进入
         </Button>
       </CardFooter>

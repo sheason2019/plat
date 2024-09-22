@@ -32,10 +32,11 @@ impl PluginDaemon {
     }
 
     pub fn daemon_key(&self) -> String {
-        match self.variant {
-            PluginDaemonVariant::Local => self.public_key.clone(),
-            _ => self.address.as_ref().unwrap().clone(),
-        }
+        let daemon_key = match self.variant {
+            PluginDaemonVariant::Local => self.public_key.as_str(),
+            _ => self.address.as_ref().unwrap(),
+        };
+        urlencoding::encode(daemon_key).to_string()
     }
 
     pub fn new_random() -> anyhow::Result<Self> {

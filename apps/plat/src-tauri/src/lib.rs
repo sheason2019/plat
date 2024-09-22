@@ -1,5 +1,5 @@
 use assets::host_assets::HostAssets;
-use commands::{append_daemon, get_daemons, remove_daemon};
+use commands::{append_daemon, get_daemons, remove_daemon, update_daemon_password};
 use tauri::Manager;
 use typings::HostStateInner;
 
@@ -35,7 +35,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_daemons,
             append_daemon,
-            remove_daemon
+            remove_daemon,
+            update_daemon_password,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -14,7 +14,7 @@ export interface Daemon {
   private_key: string;
   password: string;
   variant: DaemonVariant;
-  address?: string;
+  address: string;
 }
 
 export interface Plugin {
