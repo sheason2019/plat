@@ -9,11 +9,14 @@ export default function DaemonPage() {
 
   const navigate = useNavigate();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const intervalRef = useRef<number>();
 
   useEffect(() => {
     const postMessageHandler = (e: MessageEvent) => {
       if (e.data?.type === "exit") {
         return navigate("/");
+      }
+      if (e.data?.type === "context-received") {
       }
     };
     window.addEventListener("message", postMessageHandler);
@@ -21,12 +24,13 @@ export default function DaemonPage() {
   }, []);
 
   useEffect(() => {
-    const el = iframeRef.current;
-    if (!el) return;
+    let i = 0;
+    intervalRef.current = setInterval(() => {
+      if (i > 5) {
+        return clearInterval(intervalRef.current);
+      }
 
-    const onload = () => {
-      console.log("password", scope.daemon.password);
-      el.contentWindow?.postMessage(
+      iframeRef.current?.contentWindow?.postMessage(
         JSON.stringify({
           type: "context",
           payload: {
@@ -37,10 +41,11 @@ export default function DaemonPage() {
         }),
         new URL(scope.daemon.address).origin
       );
-    };
-    el.addEventListener("load", onload);
-    return () => el.removeEventListener("load", onload);
-  }, [iframeRef]);
+      i++;
+    }, 100);
+
+    return () => clearInterval(intervalRef.current);
+  }, []);
 
   return (
     <iframe
