@@ -5,12 +5,12 @@ import {
   CardFooter,
   CardHeader,
   Divider,
-  Link,
 } from "@nextui-org/react";
 import { DaemonScope, DaemonVariant } from "../../../models/core";
 import DeleteDaemonButton from "./delete-daemon-button";
 import EditDaemonButton from "./edit-daemon-button";
 import useDaemonScopes from "../../../hooks/use-daemons";
+import { Link } from "react-router-dom";
 
 interface Props {
   scope: DaemonScope;
@@ -43,7 +43,7 @@ export default function DaemonCard({ scope }: Props) {
           <EditDaemonButton daemonKey={daemonKey!} />
         )}
         <div className="flex-1" />
-        <Button color="primary" as={Link} href={`/daemon/${daemonKey}`}>
+        <Button color="primary" as={Link} to={`/daemon/${daemonKey}`}>
           进入
         </Button>
       </CardFooter>

@@ -9,6 +9,7 @@ import "./main.css";
 import IndexPage from "./routes";
 import PlatProvider from "./components/plat-provider";
 import DaemonPage from "./routes/daemon";
+import ErudaProvider from "./components/eruda-provider";
 
 const router = createBrowserRouter([
   {
@@ -29,9 +30,11 @@ if (!rootElement.innerHTML) {
     <StrictMode>
       <RecoilRoot>
         <NextUIProvider id="next-provider">
-          <PlatProvider>
-            <RouterProvider router={router} />
-          </PlatProvider>
+          <ErudaProvider>
+            <PlatProvider>
+              <RouterProvider router={router} />
+            </PlatProvider>
+          </ErudaProvider>
         </NextUIProvider>
       </RecoilRoot>
     </StrictMode>

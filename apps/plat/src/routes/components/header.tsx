@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import clsx from "clsx";
-import { Button, Link } from "@nextui-org/react";
+import { Button } from "@nextui-org/react";
+import { Link } from "react-router-dom";
 
 interface Props {
   title: ReactNode;
@@ -21,7 +22,7 @@ export default function Header({ title, backHref }: Props) {
           variant="light"
           className="mr-2"
           as={Link}
-          href={backHref}
+          to={backHref}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
