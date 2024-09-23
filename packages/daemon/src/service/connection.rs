@@ -1,7 +1,10 @@
 use std::{borrow::Cow, time::Duration};
 
 use axum::extract::ws::{CloseFrame, Message, WebSocket};
+use serde_json::json;
 use x25519_dalek::{PublicKey, SharedSecret};
+
+use crate::daemon::PluginDaemon;
 
 pub struct Connection {
     pub public_key: PublicKey,
@@ -97,5 +100,18 @@ impl Connection {
 
     pub async fn stop(&self, reason: &str) {
         let _ = self.stop_sender.send(reason.to_string());
+    }
+
+    pub async fn send_daemon(&self, daemon: &PluginDaemon) -> anyhow::Result<()> {
+        self.send_channel
+            .send(Message::Text(serde_json::to_string(&json!({
+                "type": "daemon",
+                "payload": {
+                    "public_key": daemon.public_key,
+                },
+            }))?))
+            .await?;
+
+        Ok(())
     }
 }

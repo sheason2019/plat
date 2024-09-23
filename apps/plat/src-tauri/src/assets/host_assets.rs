@@ -80,7 +80,7 @@ impl HostAssets {
         self.daemons
             .lock()
             .await
-            .insert(plugin_daemon.public_key.clone(), daemon_asset);
+            .insert(plugin_daemon.daemon_key(), daemon_asset);
 
         Ok(())
     }

@@ -3,15 +3,21 @@ import { x25519 } from "@noble/curves/ed25519";
 import { sha3_256 } from "@noble/hashes/sha3";
 import { base64url } from "@scure/base";
 import ConnectionPending from "./pending";
-import { ConnectionStatus } from "./typings";
+import { ConnectionStatus, IDaemon } from "./typings";
 import ConnectionClose from "./close";
 import { useDaemonContext } from "../daemon-context/context";
+import { useSetRecoilState } from "recoil";
+import { connectionState } from "./context";
 
 export default function ConnectionProvider({ children }: PropsWithChildren) {
+  const wsRef = useRef<WebSocket | null>(null);
+
+  const context = useDaemonContext();
+
   const [status, setStatus] = useState(ConnectionStatus.Pending);
   const [closeReason, setCloseReason] = useState("");
-  const context = useDaemonContext();
-  const wsRef = useRef<WebSocket | null>(null);
+
+  const setConnection = useSetRecoilState(connectionState);
 
   useEffect(() => {
     setStatus(ConnectionStatus.Pending);
@@ -47,6 +53,23 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
       }
     };
 
+    const handleMessage = async (message: string) => {
+      const data: {
+        type: string;
+        payload: object;
+      } = JSON.parse(message);
+      switch (data.type) {
+        case "daemon":
+          setConnection((prev) => ({
+            ...prev,
+            daemon: data.payload as IDaemon,
+          }));
+          break;
+        default:
+          break;
+      }
+    };
+
     const messageListener = async (e: MessageEvent) => {
       switch (sequence) {
         case 0:
@@ -56,6 +79,7 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
           await handleReceiveResult(e.data);
           break;
         default:
+          await handleMessage(e.data);
           break;
       }
 
@@ -78,7 +102,7 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
       ws.close();
       wsRef.current = null;
     };
-  }, [context?.password]);
+  }, [context?.password, setConnection]);
 
   if (status === ConnectionStatus.Pending) {
     return <ConnectionPending />;

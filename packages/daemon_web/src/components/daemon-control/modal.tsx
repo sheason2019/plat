@@ -7,6 +7,8 @@ import {
   ModalHeader,
 } from "@nextui-org/react";
 import { useDaemonContext } from "../daemon-context/context";
+import { connectionState } from "../connection-provider/context";
+import { useRecoilValue } from "recoil";
 
 interface Props {
   isOpen: boolean;
@@ -15,6 +17,7 @@ interface Props {
 
 export default function DaemonControlModal({ isOpen, onClose }: Props) {
   const context = useDaemonContext();
+  const connection = useRecoilValue(connectionState);
 
   const handleExit = () => {
     if (context?.fromOrigin)
@@ -25,10 +28,11 @@ export default function DaemonControlModal({ isOpen, onClose }: Props) {
     <Modal isOpen={isOpen} onClose={onClose}>
       <ModalContent>
         <ModalHeader>
-          <div className="flex items-baseline">
+          <div className="overflow-hidden">
             <p>菜单</p>
-            <p className="text-sm text-gray-500 ml-3">
-              账号 Daemon：
+            <p className="text-sm text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis">
+              <p>账号公钥：{connection?.daemon.public_key}</p>
+              <p>网络地址：{location.origin}</p>
             </p>
           </div>
         </ModalHeader>

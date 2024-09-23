@@ -3,6 +3,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import DaemonLayout from "./routes/layout";
 import IndexPage from "./routes";
 import DaemonContextProvider from "./components/daemon-context/provider";
+import { RecoilRoot } from "recoil";
 
 const router = createBrowserRouter([
   {
@@ -19,11 +20,13 @@ const router = createBrowserRouter([
 
 function App() {
   return (
-    <DaemonContextProvider>
-      <NextUIProvider>
-        <RouterProvider router={router} />
-      </NextUIProvider>
-    </DaemonContextProvider>
+    <RecoilRoot>
+      <DaemonContextProvider>
+        <NextUIProvider>
+          <RouterProvider router={router} />
+        </NextUIProvider>
+      </DaemonContextProvider>
+    </RecoilRoot>
   );
 }
 
