@@ -97,9 +97,17 @@ pub async fn regist_handler(
             }
         });
 
+        for connection in service.connections.lock().await.values() {
+            let _ = connection.send_daemon(&service).await;
+        }
+
         let _ = recv_handler.await;
         let _ = ping_handler.await;
 
         service.registed_plugins.lock().await.remove(&name);
+
+        for connection in service.connections.lock().await.values() {
+            let _ = connection.send_daemon(&service).await;
+        }
     })
 }

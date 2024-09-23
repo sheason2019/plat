@@ -82,10 +82,7 @@ pub async fn connect_handler(
         let connection = Arc::new(connection);
 
         // 发送 daemon 信息
-        connection
-            .send_daemon(&service.plugin_daemon)
-            .await
-            .unwrap();
+        connection.send_daemon(&service).await.unwrap();
 
         // 将 Connection 的引用写入 HashMap
         service

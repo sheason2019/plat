@@ -1,10 +1,13 @@
 use std::{borrow::Cow, time::Duration};
 
 use axum::extract::ws::{CloseFrame, Message, WebSocket};
+use plugin::models::PluginConfig;
 use serde_json::json;
 use x25519_dalek::{PublicKey, SharedSecret};
 
 use crate::daemon::PluginDaemon;
+
+use super::PluginDaemonService;
 
 pub struct Connection {
     pub public_key: PublicKey,
@@ -102,12 +105,13 @@ impl Connection {
         let _ = self.stop_sender.send(reason.to_string());
     }
 
-    pub async fn send_daemon(&self, daemon: &PluginDaemon) -> anyhow::Result<()> {
+    pub async fn send_daemon(&self, service: &PluginDaemonService) -> anyhow::Result<()> {
         self.send_channel
             .send(Message::Text(serde_json::to_string(&json!({
                 "type": "daemon",
                 "payload": {
-                    "public_key": daemon.public_key,
+                    "public_key": service.plugin_daemon.public_key,
+                    "plugins": service.registed_plugins.lock().await.values().collect::<Vec<&PluginConfig>>(),
                 },
             }))?))
             .await?;

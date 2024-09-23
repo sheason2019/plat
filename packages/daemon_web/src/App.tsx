@@ -4,6 +4,7 @@ import DaemonLayout from "./routes/layout";
 import IndexPage from "./routes";
 import DaemonContextProvider from "./components/daemon-context/provider";
 import { RecoilRoot } from "recoil";
+import PluginPage from "./routes/plugin";
 
 const router = createBrowserRouter([
   {
@@ -13,6 +14,10 @@ const router = createBrowserRouter([
       {
         path: "",
         element: <IndexPage />,
+      },
+      {
+        path: "plugin/:pluginName/:entryLabel",
+        element: <PluginPage />,
       },
     ],
   },

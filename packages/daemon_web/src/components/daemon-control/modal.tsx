@@ -1,5 +1,6 @@
 import {
   Button,
+  Divider,
   Modal,
   ModalBody,
   ModalContent,
@@ -9,6 +10,8 @@ import {
 import { useDaemonContext } from "../daemon-context/context";
 import { connectionState } from "../connection-provider/context";
 import { useRecoilValue } from "recoil";
+import PluginEntry from "./plugin-entry";
+import { Fragment } from "react/jsx-runtime";
 
 interface Props {
   isOpen: boolean;
@@ -30,13 +33,29 @@ export default function DaemonControlModal({ isOpen, onClose }: Props) {
         <ModalHeader>
           <div className="overflow-hidden">
             <p>菜单</p>
-            <p className="text-sm text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis">
+            <div className="text-sm text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis">
               <p>账号公钥：{connection?.daemon.public_key}</p>
               <p>网络地址：{location.origin}</p>
-            </p>
+            </div>
           </div>
         </ModalHeader>
-        <ModalBody></ModalBody>
+        <ModalBody>
+          <div className="grid grid-cols-3 mb-4">
+            {connection?.daemon.plugins.map((plugin) => (
+              <Fragment key={plugin.name}>
+                {plugin.entries.map((entry) => (
+                  <PluginEntry
+                    key={entry.label}
+                    plugin={plugin}
+                    entry={entry}
+                    onClose={onClose}
+                  />
+                ))}
+              </Fragment>
+            ))}
+          </div>
+        </ModalBody>
+        <Divider />
         <ModalFooter>
           <Button
             startContent={
