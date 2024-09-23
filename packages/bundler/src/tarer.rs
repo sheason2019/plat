@@ -1,7 +1,7 @@
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
 use flate2::{write::GzEncoder, Compression};
-use models::PluginConfig;
+use plugin::models::PluginConfig;
 
 pub struct Tarer {
     config_path: std::path::PathBuf,
@@ -19,7 +19,8 @@ impl Tarer {
 
         // 读取 Plugin 配置
         let config_path = self.config_path.join("plugin.json");
-        let config = PluginConfig::from_file(config_path.clone())?;
+        let config_bytes = fs::read(&config_path)?;
+        let config: PluginConfig = serde_json::from_slice(&config_bytes)?;
 
         // 写入 WASM 文件
         tar.append_path_with_name(self.config_path.join(&config.wasm_root), "plugin.wasm")?;
@@ -39,7 +40,7 @@ impl Tarer {
             new_config
         };
 
-        let plugin_string = plugin_config.to_json_string()?;
+        let plugin_string = serde_json::to_string(&plugin_config)?;
         let plugin_bytes = plugin_string.as_bytes();
         let mut header = tar::Header::new_gnu();
         header.set_size(plugin_bytes.len().try_into()?);

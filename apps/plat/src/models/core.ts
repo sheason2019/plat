@@ -1,27 +1,29 @@
-export interface Profile {
-  daemons: Daemon[];
+export interface DaemonScope {
+  daemon: Daemon;
+  plugins: Plugin[];
+}
+
+export enum DaemonVariant {
+  Local = "Local",
+  Remote = "Remote",
+  Hybrid = "Hybrid",
 }
 
 export interface Daemon {
   public_key: string;
-  daemon_address: String;
-  registed_plugins: Record<string, RegistedPlugin>;
+  private_key: string;
+  password: string;
+  variant: DaemonVariant;
+  address: string;
 }
 
-export interface RegistedPlugin {
-  addr: string;
-  config: PluginConfig;
-}
-
-export interface PluginConfig {
+export interface Plugin {
   name: string;
   main: string;
-  entries: PluginEntry[];
-}
-
-export interface PluginEntry {
-  label: string;
-  icon: string;
-  href: string;
-  target: string;
+  entries: {
+    label: string;
+    icon: string;
+    href: string;
+    target: string;
+  }[];
 }

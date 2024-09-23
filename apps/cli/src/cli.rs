@@ -1,7 +1,10 @@
+use std::{env, fs, path::PathBuf};
+
 use anyhow::anyhow;
 use bundler::{tarer::Tarer, untarer::Untarer};
 use clap::{Parser, Subcommand};
-use plugin::PluginService;
+use daemon::{daemon::PluginDaemon, service::PluginDaemonService};
+use plugin::{models::PluginConfig, PluginService};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -31,6 +34,14 @@ enum Commands {
         #[arg(short, long)]
         port: Option<u16>,
     },
+    Daemon {
+        #[arg(short, long)]
+        path: Option<PathBuf>,
+        #[arg(short, long)]
+        port: Option<u16>,
+        #[arg(short, long)]
+        ephemeral: Option<bool>,
+    },
 }
 
 impl Cli {
@@ -41,6 +52,42 @@ impl Cli {
             }
             Some(Commands::Untar { path, output }) => {
                 Untarer::new(path.clone()).untar(output.clone()).unwrap()
+            }
+            Some(Commands::Daemon {
+                path,
+                port,
+                ephemeral,
+            }) => {
+                let port = match port.as_ref() {
+                    Some(val) => val.clone(),
+                    None => 0,
+                };
+
+                if ephemeral.is_some() {
+                    if ephemeral.unwrap() {
+                        let daemon = PluginDaemon::new_random()?;
+                        let service =
+                            PluginDaemonService::new(daemon, env::current_dir()?, port).await?;
+                        println!("start daemon success:");
+                        println!(
+                            "daemon address: {}",
+                            service.plugin_daemon.address.as_ref().unwrap()
+                        );
+                        service.wait().await?;
+                        return Ok(());
+                    }
+                }
+
+                let path = path.as_ref().unwrap();
+                let daemon: PluginDaemon = serde_json::from_slice(&fs::read(path)?)?;
+                let service = PluginDaemonService::new(daemon, env::current_dir()?, port).await?;
+                println!("start daemon success:");
+                println!(
+                    "daemon address: {}",
+                    service.plugin_daemon.address.as_ref().unwrap()
+                );
+                service.wait().await?;
+                return Ok(());
             }
             Some(Commands::Serve {
                 path,
@@ -65,17 +112,16 @@ impl Cli {
                     return Err(anyhow!("未找到指定的 Plugin 配置文件"));
                 }
 
+                let mut plugin_config: PluginConfig =
+                    serde_json::from_slice(&fs::read(&plugin_path)?)?;
+                plugin_config.daemon_address = Some(daemon_address.clone());
+                plugin_config.regist_address = regist_address.clone();
+
                 // 启动 Plugin
-                let service = PluginService::new(
-                    plugin_path,
-                    daemon_address.clone(),
-                    regist_address.clone(),
-                    port,
-                )
-                .await?;
+                let service = PluginService::new(plugin_path, plugin_config, port).await?;
 
                 println!("start plugin success:");
-                println!("plugin address: {}", service.addr());
+                println!("plugin address: {}", service.addr().unwrap());
                 println!("daemon address: {}", daemon_address);
 
                 // 等待服务停止

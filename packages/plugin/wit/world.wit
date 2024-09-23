@@ -1,0 +1,40 @@
+package plat:plugin;
+
+world plat-world {
+    include wasi:http/proxy@0.2.0;
+    
+    export lifecycle: interface {
+        on-start: func();
+    }
+
+    import lock: interface {
+        record lock-handler {
+            name: string,
+        }
+
+        create-lock-handler: func(name: string) -> lock-handler;
+        drop-lock-handler: func(handler: lock-handler);
+
+        lock: func(handler: lock-handler);
+        unlock: func(handler: lock-handler);
+    }
+
+    import channel: interface {
+        record channel-handler {
+            name: string,
+        }
+
+        create-channel-handler: func(name: string) -> channel-handler;
+        drop-channel-handler: func(handler: channel-handler);
+
+        send: func(handler: channel-handler, message: string);
+        recv: func(handler: channel-handler) -> string;
+    }
+
+    import task: interface {
+        spawn: func(payload: string);
+    }
+    export task: interface {
+        on-spawn: func(payload: string);
+    }
+}
