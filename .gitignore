@@ -25,3 +25,6 @@ dist-ssr
 
 routeTree.gen.ts
 target
+cert
+keystore.properties
+default-daemon-assets
