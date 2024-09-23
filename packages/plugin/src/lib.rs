@@ -38,10 +38,9 @@ impl PluginService {
             Some(value) => value,
         };
         plat_server.plugin_config.address = Some(address);
+        let terminate = plat_server.create_regist_plugin_handle().await?;
 
         let plat_server = Arc::new(plat_server);
-
-        let terminate = plat_server.create_regist_plugin_handle().await?;
 
         // plugin init
         let init_handler = tokio::task::spawn({

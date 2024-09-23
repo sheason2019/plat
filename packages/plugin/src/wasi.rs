@@ -3,7 +3,9 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::anyhow;
+use base64::{prelude::*, Engine as _};
 use futures_util::{SinkExt, StreamExt};
+use rand::rngs::OsRng;
 use tokio::sync::broadcast::Sender;
 use tokio_tungstenite::tungstenite::Message;
 use url::Url;
@@ -12,12 +14,14 @@ use wasmtime::{Config, Engine, Result, Store};
 use wasmtime_wasi_http::bindings::http::types::Scheme;
 use wasmtime_wasi_http::body::HyperOutgoingBody;
 use wasmtime_wasi_http::WasiHttpView;
+use x25519_dalek::{EphemeralSecret, PublicKey};
 
 use crate::models::PluginConfig;
 use crate::plat_bindings;
 
 pub struct PlatServer {
     pub pre: plat_bindings::PlatWorldPre<plat_bindings::Component>,
+    pub daemon_public_key: String,
     pub plugin_config: PluginConfig,
     pub plugin_config_directory: PathBuf,
     pub daemon_address: String,
@@ -65,6 +69,7 @@ impl PlatServer {
             plugin_config,
             plugin_config_directory,
             daemon_address,
+            daemon_public_key: String::new(),
         })
     }
 
@@ -106,7 +111,7 @@ impl PlatServer {
         }
     }
 
-    pub async fn create_regist_plugin_handle(&self) -> anyhow::Result<Sender<()>> {
+    pub async fn create_regist_plugin_handle(&mut self) -> anyhow::Result<Sender<()>> {
         let mut regist_plugin_address = Url::parse(&self.daemon_address)?.join("api/regist")?;
         match regist_plugin_address.scheme() {
             "http" => {
@@ -136,6 +141,18 @@ impl PlatServer {
                 serde_json::to_string(&self.plugin_config).unwrap(),
             ))
             .await?;
+
+        match read.next().await.unwrap()? {
+            Message::Text(text) => {
+                self.daemon_public_key = text;
+            }
+            _ => return Err(anyhow!("获取Daemon公钥失败")),
+        }
+
+        let secret = EphemeralSecret::random_from_rng(OsRng);
+        let public_key = PublicKey::from(&secret);
+        let public_key_string = BASE64_URL_SAFE.encode(public_key.as_bytes());
+        write.send(Message::text(public_key_string)).await?;
 
         let (tx, _rx) = tokio::sync::broadcast::channel::<()>(4);
         tokio::task::spawn({

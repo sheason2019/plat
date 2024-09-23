@@ -5,8 +5,6 @@ use plugin::models::PluginConfig;
 use serde_json::json;
 use x25519_dalek::{PublicKey, SharedSecret};
 
-use crate::daemon::PluginDaemon;
-
 use super::PluginDaemonService;
 
 pub struct Connection {

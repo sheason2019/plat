@@ -58,7 +58,10 @@ impl Component {
             table: ResourceTable::new(),
             wasi: WasiCtxBuilder::new()
                 .inherit_stdio()
-                .envs(&[("daemon_address", &plat_server.daemon_address)])
+                .envs(&[
+                    ("daemon_address", &plat_server.daemon_address),
+                    ("daemon_public_key", &plat_server.daemon_public_key),
+                ])
                 .preopened_dir(storage_path, "/storage", DirPerms::all(), FilePerms::all())
                 .unwrap()
                 .preopened_dir(assets_path, "/assets", DirPerms::all(), FilePerms::all())
