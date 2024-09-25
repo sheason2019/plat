@@ -30,8 +30,8 @@ fn setup<'a>(app: &'a mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .setup(setup)
         .plugin(tauri_plugin_shell::init())
+        .setup(setup)
         .invoke_handler(tauri::generate_handler![
             get_daemons,
             append_daemon,
