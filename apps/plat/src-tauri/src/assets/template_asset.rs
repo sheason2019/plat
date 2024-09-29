@@ -7,7 +7,8 @@ use std::{
 use anyhow::anyhow;
 use base64::Engine;
 use sha3::Digest;
-use tauri::{path::{BaseDirectory, SafePathBuf}, AppHandle, Manager};
+use tauri::{path::BaseDirectory, AppHandle, Manager};
+use tauri_plugin_fs::FsExt;
 
 use super::daemon_asset::DaemonAsset;
 
@@ -41,21 +42,8 @@ impl TemplateAsset {
             .path()
             .resolve("default.temp.tar", BaseDirectory::Resource)
             .unwrap();
-        println!(
-            "default tempalte asset path: {:?}",
-            &default_template_asset_path
-        );
-        
-        let _ = fs::File::open(&default_template_asset_path)?;
-        println!("open default tempalte file success");
+        let template_bytes = app_handle.fs().read(&default_template_asset_path)?;
 
-        let asset = match app_handle
-            .asset_resolver()
-            .get(default_template_asset_path.to_str().unwrap().to_string())
-        {
-            Some(asset) => asset,
-            None => return Err(anyhow!("未找到默认 daemon template")),
-        };
         let default_template_path = app_handle
             .path()
             .data_dir()?
@@ -70,7 +58,7 @@ impl TemplateAsset {
         }
 
         let mut default_template_file = fs::File::create(&default_template_path)?;
-        default_template_file.write_all(asset.bytes())?;
+        default_template_file.write_all(&template_bytes)?;
 
         Self::new_from_path(default_template_path).await
     }

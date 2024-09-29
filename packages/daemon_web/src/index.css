@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-*:has(.h-full-parent) {
-  @apply h-full;
+html,
+body,
+#root,
+#next-ui-provider {
+  height: 100%;
 }

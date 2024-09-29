@@ -39,7 +39,7 @@ export default function DaemonContextProvider({ children }: PropsWithChildren) {
 
   if (isPending) {
     return (
-      <div className="h-full h-full-parent flex flex-col justify-center items-center">
+      <div className="h-full flex flex-col justify-center items-center">
         <Spinner label="正在初始化" labelColor="primary" />
       </div>
     );

@@ -27,17 +27,6 @@ impl HostAssets {
             return Ok(host_assets);
         }
 
-        let daemons_dir = host_assets.path.join("daemons");
-        if daemons_dir.exists() {
-            for entry in daemons_dir.read_dir()? {
-                let daemon_asset = DaemonAsset::new_from_path(entry?.path()).await?;
-                host_assets.daemons.lock().await.insert(
-                    daemon_asset.get_plugin_daemon().await.daemon_key(),
-                    daemon_asset,
-                );
-            }
-        }
-
         let templates_dir = host_assets.path.join("templates");
         if templates_dir.exists() {
             for entry in templates_dir.read_dir()? {
@@ -53,6 +42,26 @@ impl HostAssets {
             "default".to_string(),
             TemplateAsset::new_from_default(app_handle).await?,
         );
+
+        let daemons_dir = host_assets.path.join("daemons");
+        if daemons_dir.exists() {
+            for entry in daemons_dir.read_dir()? {
+                let templates_map = host_assets.templates.lock().await;
+                let daemon_asset = DaemonAsset::new_from_path(entry?.path()).await?;
+                let template = templates_map
+                    .get(
+                        &fs::read_to_string(daemon_asset.path.join("assets_sha3_256"))
+                            .unwrap_or("default".to_string()),
+                    )
+                    .unwrap_or(templates_map.get(&"default".to_string()).unwrap());
+                template.reconciliation(&daemon_asset).await?;
+
+                host_assets.daemons.lock().await.insert(
+                    daemon_asset.get_plugin_daemon().await.daemon_key(),
+                    daemon_asset,
+                );
+            }
+        }
 
         Ok(host_assets)
     }

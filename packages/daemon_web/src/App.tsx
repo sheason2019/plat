@@ -27,7 +27,7 @@ function App() {
   return (
     <RecoilRoot>
       <DaemonContextProvider>
-        <NextUIProvider>
+        <NextUIProvider id="next-ui-provider">
           <RouterProvider router={router} />
         </NextUIProvider>
       </DaemonContextProvider>

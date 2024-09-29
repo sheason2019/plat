@@ -23,7 +23,9 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
     setStatus(ConnectionStatus.Pending);
     let sequence = 0;
 
-    const ws = new WebSocket("/api/connect");
+    const ws = new WebSocket(
+      `${location.origin.replace("http", "ws")}/api/connect`
+    );
 
     const handleReceivePublicKey = async (base64UrlPublicKey: string) => {
       const pubKey = base64url.decode(base64UrlPublicKey);

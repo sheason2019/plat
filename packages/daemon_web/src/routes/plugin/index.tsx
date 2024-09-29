@@ -16,5 +16,5 @@ export default function PluginPage() {
     return `${plugin?.address}${entry?.href}`;
   }, [connection?.daemon.plugins, entryLabel, pluginName]);
 
-  return <iframe className="h-full h-full-parent w-full" src={address} />;
+  return <iframe className="h-full w-full" src={address} />;
 }
