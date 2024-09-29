@@ -13,7 +13,7 @@ export default function Header({ title, backHref }: Props) {
     <div
       className={clsx(
         "backdrop-blur-md sticky top-0",
-        "flex items-center px-3 my-1 h-10"
+        "flex items-center my-1 h-10"
       )}
     >
       {backHref && (
