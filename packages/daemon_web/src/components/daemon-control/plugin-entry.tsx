@@ -11,9 +11,7 @@ interface Props {
 export default function PluginEntry({ plugin, entry, onClose }: Props) {
   return (
     <Button
-      startContent={
-        <object data={plugin.address + entry.icon} type="image/svg+xml" />
-      }
+      startContent={<img src={plugin.address + entry.icon} />}
       as={Link}
       to={`/plugin/${encodeURIComponent(plugin.name)}/${encodeURIComponent(
         entry.label

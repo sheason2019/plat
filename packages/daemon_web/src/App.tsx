@@ -1,10 +1,10 @@
-import { NextUIProvider } from "@nextui-org/react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import DaemonLayout from "./routes/layout";
 import IndexPage from "./routes";
 import DaemonContextProvider from "./components/daemon-context/provider";
 import { RecoilRoot } from "recoil";
 import PluginPage from "./routes/plugin";
+import SettingsPage from "./routes/settings";
 
 const router = createBrowserRouter([
   {
@@ -14,6 +14,10 @@ const router = createBrowserRouter([
       {
         path: "",
         element: <IndexPage />,
+      },
+      {
+        path: "settings",
+        element: <SettingsPage />,
       },
       {
         path: "plugin/:pluginName/:entryLabel",
@@ -27,9 +31,7 @@ function App() {
   return (
     <RecoilRoot>
       <DaemonContextProvider>
-        <NextUIProvider id="next-ui-provider">
-          <RouterProvider router={router} />
-        </NextUIProvider>
+        <RouterProvider router={router} />
       </DaemonContextProvider>
     </RecoilRoot>
   );

@@ -1,5 +1,7 @@
-# 构建安卓安装包
+# 构建流程
 
-由于 Wasmtime 不支持 32位 Arm 平台，因此构建安卓安装包时需要指定目标 Aarch64。
+1. 构建 `apps/cli`，并将其添加到 PATH。
 
-通过 `npm run build-apk` 命令构建安卓安装包。
+2. 构建 `packages/daemon_web` 并通过 platx 将产物打包为 `default.temp.tar`。
+
+3. 构建 `apps/plat`，得到最终产物。

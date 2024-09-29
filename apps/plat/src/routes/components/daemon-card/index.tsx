@@ -43,7 +43,11 @@ export default function DaemonCard({ scope }: Props) {
           <EditDaemonButton daemonKey={daemonKey!} />
         )}
         <div className="flex-1" />
-        <Button color="primary" as={Link} to={`/daemon/${daemonKey}`}>
+        <Button
+          color="primary"
+          as={Link}
+          to={`/daemon/${encodeURIComponent(daemonKey)}`}
+        >
           进入
         </Button>
       </CardFooter>
