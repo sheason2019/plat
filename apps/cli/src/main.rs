@@ -1,6 +1,7 @@
 use clap::Parser;
 
 pub mod cli;
+mod commands;
 
 use crate::cli::Cli;
 

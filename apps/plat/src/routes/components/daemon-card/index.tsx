@@ -18,7 +18,7 @@ interface Props {
 
 export default function DaemonCard({ scope }: Props) {
   const { getDaemonKey } = useDaemonScopes();
-  const daemonKey = getDaemonKey(scope);
+  const daemonKey = decodeURIComponent(getDaemonKey(scope));
 
   return (
     <Card>
