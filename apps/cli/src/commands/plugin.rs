@@ -1,7 +1,6 @@
 use std::fs;
 
 use anyhow::anyhow;
-use bundler::{tarer::Tarer, untarer::Untarer};
 use clap::{command, Args, Subcommand};
 use plugin::{models::PluginConfig, PluginService};
 
@@ -38,10 +37,10 @@ impl PluginArgs {
     pub async fn work(&self) -> anyhow::Result<()> {
         match self.command.as_ref() {
             Some(PluginCommands::Tar { path, output }) => {
-                Tarer::new(path.clone()).tar(output.clone())
+                bundler::plugin::tar(path.clone(), output.clone())
             }
             Some(PluginCommands::Untar { path, output }) => {
-                Untarer::new(path.clone()).untar(output.clone())
+                bundler::plugin::untar(path.clone(), output.clone())
             }
             Some(PluginCommands::Serve {
                 path,
@@ -56,7 +55,7 @@ impl PluginArgs {
 
                 let plugin_path = match path.is_absolute() {
                     true => path.clone(),
-                    false => std::env::current_dir()?,
+                    false => std::env::current_dir()?.join(path),
                 };
                 let plugin_path = match plugin_path.is_dir() {
                     true => plugin_path.join("plugin.json"),

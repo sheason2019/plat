@@ -50,6 +50,12 @@ impl DaemonArgs {
                 service.wait().await?;
                 Ok(())
             }
+            Some(DaemonCommands::Tar { path, output }) => {
+                bundler::daemon::tar(path.clone(), output.clone())
+            }
+            Some(DaemonCommands::Untar { path, output }) => {
+                bundler::daemon::untar(path.clone(), output.clone())
+            }
             _ => Ok(()),
         }
     }
