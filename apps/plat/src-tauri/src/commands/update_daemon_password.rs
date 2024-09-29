@@ -35,7 +35,7 @@ async fn update_daemon_password_inner(
         None => return Err(anyhow!("未找到对应的 Daemon")),
         Some(daemon_asset) => {
             daemon_asset
-                .update_password(&app_handle, new_password.to_string())
+                .update_password(new_password.to_string())
                 .await?;
             app_handle.emit("update-daemons", ())?;
         }

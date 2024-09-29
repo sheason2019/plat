@@ -4,12 +4,13 @@ use daemon::daemon::PluginDaemon;
 use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex;
 
-use super::daemon_asset::DaemonAsset;
+use super::{daemon_asset::DaemonAsset, template_asset::TemplateAsset};
 
 // 资产树
 pub struct HostAssets {
     pub path: PathBuf,
     pub daemons: Mutex<HashMap<String, DaemonAsset>>,
+    pub templates: Mutex<HashMap<String, TemplateAsset>>,
 }
 
 impl HostAssets {
@@ -18,6 +19,7 @@ impl HostAssets {
         let host_assets = HostAssets {
             path: host_assets_dir,
             daemons: Mutex::new(HashMap::new()),
+            templates: Mutex::new(HashMap::new()),
         };
 
         if !host_assets.path.exists() {
@@ -36,12 +38,28 @@ impl HostAssets {
             }
         }
 
+        let templates_dir = host_assets.path.join("templates");
+        if templates_dir.exists() {
+            for entry in templates_dir.read_dir()? {
+                let template_asset = TemplateAsset::new_from_path(entry?.path()).await?;
+                host_assets
+                    .templates
+                    .lock()
+                    .await
+                    .insert(template_asset.sha3_256_string.clone(), template_asset);
+            }
+        }
+        host_assets.templates.lock().await.insert(
+            "default".to_string(),
+            TemplateAsset::new_from_default(app_handle).await?,
+        );
+
         Ok(host_assets)
     }
 
-    pub async fn up(&self, app_handle: &AppHandle) -> anyhow::Result<()> {
+    pub async fn up(&self) -> anyhow::Result<()> {
         for daemon in self.daemons.lock().await.values() {
-            daemon.up(app_handle).await?;
+            daemon.up().await?;
         }
 
         Ok(())
@@ -55,11 +73,7 @@ impl HostAssets {
         Ok(())
     }
 
-    pub async fn append_daemon(
-        &self,
-        app_handle: &AppHandle,
-        plugin_daemon: PluginDaemon,
-    ) -> anyhow::Result<()> {
+    pub async fn append_daemon(&self, plugin_daemon: PluginDaemon) -> anyhow::Result<()> {
         let daemon_dir = self
             .path
             .join("daemons")
@@ -75,7 +89,7 @@ impl HostAssets {
         )?;
 
         let daemon_asset = DaemonAsset::new_from_path(daemon_dir).await?;
-        daemon_asset.up(app_handle).await?;
+        daemon_asset.up().await?;
 
         self.daemons
             .lock()

@@ -31,7 +31,7 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../../../packages/daemon_web/dist/": "resources/default-daemon-assets/"
+      "../../../packages/daemon_web/dist/default.temp.tar": "default.temp.tar"
     }
   }
 }

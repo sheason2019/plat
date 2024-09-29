@@ -16,7 +16,7 @@ fn setup<'a>(app: &'a mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
             .await
             .expect("扫描本地资产失败");
         // 拉起资产树中定义的服务
-        host_assets.up(handle).await.unwrap();
+        host_assets.up().await.unwrap();
 
         let state = HostStateInner { host_assets };
 

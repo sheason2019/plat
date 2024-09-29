@@ -4,7 +4,6 @@ use daemon::{
     daemon::{PluginDaemon, PluginDaemonVariant},
     service::PluginDaemonService,
 };
-use tauri::{path::BaseDirectory, AppHandle, Manager};
 use tokio::sync::Mutex;
 
 use super::plugin_asset::PluginAsset;
@@ -51,7 +50,7 @@ impl DaemonAsset {
         }
     }
 
-    pub async fn up(&self, app_handle: &AppHandle) -> anyhow::Result<()> {
+    pub async fn up(&self) -> anyhow::Result<()> {
         match self.plugin_daemon.variant {
             PluginDaemonVariant::Local => (),
             _ => return Ok(()),
@@ -62,14 +61,9 @@ impl DaemonAsset {
             return Ok(());
         }
 
-        let plugin_daemon_service = PluginDaemonService::new(
-            self.plugin_daemon.clone(),
-            app_handle
-                .path()
-                .resolve("resources/default-daemon-assets/", BaseDirectory::Resource)?,
-            0,
-        )
-        .await?;
+        let plugin_daemon_service =
+            PluginDaemonService::new(self.plugin_daemon.clone(), self.path.join("assets"), 0)
+                .await?;
         plugin_daemon_service_option.replace(plugin_daemon_service);
 
         for plugin in self.plugins.lock().await.values() {
@@ -96,7 +90,6 @@ impl DaemonAsset {
 
     pub async fn update_password(
         &mut self,
-        app_handle: &AppHandle,
         new_password: String,
     ) -> anyhow::Result<()> {
         // 停止服务
@@ -110,7 +103,7 @@ impl DaemonAsset {
         )?;
 
         // 重启服务
-        self.up(app_handle).await?;
+        self.up().await?;
 
         Ok(())
     }
