@@ -10,7 +10,7 @@ use sha3::Digest;
 use tauri::{path::BaseDirectory, AppHandle, Manager};
 use tauri_plugin_fs::FsExt;
 
-use super::daemon_asset::DaemonAsset;
+use super::local_daemon_asset::LocalDaemonAsset;
 
 pub struct TemplateAsset {
     pub path: PathBuf,
@@ -63,7 +63,7 @@ impl TemplateAsset {
         Self::new_from_path(default_template_path).await
     }
 
-    pub async fn reconciliation(&self, daemon_asset: &DaemonAsset) -> anyhow::Result<()> {
+    pub async fn reconciliation(&self, daemon_asset: &LocalDaemonAsset) -> anyhow::Result<()> {
         let cur_assets_hash_file = daemon_asset.path.join("assets_sha3_256");
         if cur_assets_hash_file.exists() {
             let cur_assets_hash_string = fs::read_to_string(cur_assets_hash_file.clone())?;

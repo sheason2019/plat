@@ -1,11 +1,11 @@
-import DaemonCard from "./components/daemon-card";
+import LocalDaemonCard from "./components/local-daemon-card";
 import useDaemonScopes from "../hooks/use-daemons";
 import Header from "./components/header";
 import CreateDaemon from "./components/create-daemon";
 import Navigation from "../components/navigation";
 
 export default function IndexPage() {
-  const { scopes, getDaemonKey } = useDaemonScopes();
+  const { scopes } = useDaemonScopes();
 
   return (
     <div className="container mx-auto px-2">
@@ -19,7 +19,7 @@ export default function IndexPage() {
       />
       <div className="grid grid-cols-1 md:grid-cols-2 mt-3 gap-3">
         {scopes?.map((scope) => (
-          <DaemonCard key={getDaemonKey(scope)} scope={scope} />
+          <LocalDaemonCard key={scope.daemon.public_key} scope={scope} />
         ))}
       </div>
       <CreateDaemon />

@@ -1,7 +1,6 @@
 use std::{
     fs::{self},
     sync::Arc,
-    time,
 };
 
 use axum::{
@@ -14,14 +13,14 @@ use reqwest::StatusCode;
 use serde_json::{json, Value};
 use tokio::{
     fs::File,
-    io::{self, BufReader, BufWriter},
+    io::{self, BufWriter},
 };
 use tokio_util::io::StreamReader;
 
-use crate::service::PluginDaemonService;
+use crate::service::DaemonServer;
 
 pub async fn list_plugin_handler(
-    State(service): State<Arc<PluginDaemonService>>,
+    State(service): State<Arc<DaemonServer>>,
 ) -> (StatusCode, Json<Value>) {
     let registed_plugins = service.registed_plugins.lock().await;
     let plugins: Vec<&PluginConfig> = registed_plugins.values().collect();
@@ -33,7 +32,7 @@ pub async fn list_plugin_handler(
 }
 
 pub async fn install_plugin_handler(
-    State(service): State<Arc<PluginDaemonService>>,
+    State(service): State<Arc<DaemonServer>>,
     mut multipart: Multipart,
 ) -> Result<Json<Value>, (StatusCode, String)> {
     // 获取上传的文件
@@ -78,7 +77,7 @@ pub async fn install_plugin_handler(
     todo!()
 }
 
-pub async fn delete_plugin_handler(State(service): State<Arc<PluginDaemonService>>) {
+pub async fn delete_plugin_handler(State(service): State<Arc<DaemonServer>>) {
     // 从 Plugins 中读取需要删除的插件
     // 获取 Connection，请求用户确认
     // 根据返回的结果删除或取消删除插件

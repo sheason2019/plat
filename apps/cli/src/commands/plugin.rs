@@ -1,8 +1,6 @@
-use std::fs;
-
 use anyhow::anyhow;
 use clap::{command, Args, Subcommand};
-use plugin::{models::PluginConfig, PluginService};
+use plugin::{Options, PluginServer};
 
 #[derive(Debug, Args)]
 pub struct PluginArgs {
@@ -69,16 +67,19 @@ impl PluginArgs {
                     return Err(anyhow!("未找到指定的 Plugin 配置文件"));
                 }
 
-                let mut plugin_config: PluginConfig =
-                    serde_json::from_slice(&fs::read(&plugin_path)?)?;
-                plugin_config.daemon_address = Some(daemon_address.clone());
-                plugin_config.regist_address = regist_address.clone();
-
                 // 启动 Plugin
-                let service = PluginService::new(plugin_path, plugin_config, port).await?;
+                let service = PluginServer::new(
+                    plugin_path,
+                    Options {
+                        port,
+                        daemon_address: daemon_address.clone(),
+                        regist_address: regist_address.clone(),
+                    },
+                )
+                .await?;
 
                 println!("start plugin success:");
-                println!("plugin address: {}", service.addr().unwrap());
+                println!("plugin address: {}", service.regist_address);
                 println!("daemon address: {}", daemon_address);
 
                 // 等待服务停止

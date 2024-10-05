@@ -5,19 +5,10 @@ use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum PluginDaemonVariant {
-    Local,
-    Remote,
-    Hybrid,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PluginDaemon {
     pub public_key: String,
     pub private_key: String,
     pub password: String,
-    pub variant: PluginDaemonVariant,
-    pub address: Option<String>,
 }
 
 impl PluginDaemon {
@@ -26,17 +17,7 @@ impl PluginDaemon {
             public_key: String::new(),
             private_key: String::new(),
             password: String::new(),
-            variant: PluginDaemonVariant::Local,
-            address: None,
         }
-    }
-
-    pub fn daemon_key(&self) -> String {
-        let daemon_key = match self.variant {
-            PluginDaemonVariant::Local => self.public_key.as_str(),
-            _ => self.address.as_ref().unwrap(),
-        };
-        urlencoding::encode(daemon_key).to_string()
     }
 
     pub fn new_random() -> anyhow::Result<Self> {
@@ -48,8 +29,6 @@ impl PluginDaemon {
             private_key: BASE64_URL_SAFE.encode(signing_key.as_bytes()),
             public_key: BASE64_URL_SAFE.encode(verifying_key.as_bytes()),
             password: "".to_string(),
-            variant: PluginDaemonVariant::Local,
-            address: None,
         })
     }
 

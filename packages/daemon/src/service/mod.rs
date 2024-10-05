@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 
 use axum::{
     extract::State,
@@ -9,13 +9,13 @@ use axum::{
 use connection::Connection;
 use handlers::{
     connect_handler, delete_plugin_handler, install_plugin_handler, list_plugin_handler,
-    regist_handler,
+    regist_handler, sig_handler,
 };
-use plugin::models::PluginConfig;
+use plugin::{models::PluginConfig, Options, PluginServer};
 use serde_json::{json, Value};
 use tokio::sync::{broadcast::Sender, Mutex};
 use tower_http::services::{ServeDir, ServeFile};
-use typings::{DaemonChannelType, SignRequest, VerifyRequest, VerifyResponse};
+use typings::{VerifyRequest, VerifyResponse};
 
 mod connection;
 mod handlers;
@@ -23,15 +23,16 @@ mod typings;
 
 use crate::daemon::{PluginDaemon, SignBox};
 
-pub struct PluginDaemonService {
+pub struct DaemonServer {
     pub plugin_daemon: PluginDaemon,
     pub registed_plugins: Arc<Mutex<HashMap<String, PluginConfig>>>,
+    pub address: String,
     root_path: PathBuf,
-    channel: Sender<DaemonChannelType>,
+    terminate: Sender<()>,
     connections: Mutex<HashMap<String, Arc<Connection>>>,
 }
 
-impl PluginDaemonService {
+impl DaemonServer {
     pub async fn new(
         daemon: PluginDaemon,
         root_path: PathBuf,
@@ -41,16 +42,14 @@ impl PluginDaemonService {
         let tcp_listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", port)).await?;
         let address = format!("http://{}", tcp_listener.local_addr()?.to_string());
 
-        let mut plugin_daemon = daemon.clone();
-        plugin_daemon.address = Some(address);
+        let (tx, _rx) = tokio::sync::broadcast::channel::<()>(4);
 
-        let (tx, _rx) = tokio::sync::broadcast::channel::<DaemonChannelType>(16);
-
-        let service = PluginDaemonService {
-            plugin_daemon,
+        let service = DaemonServer {
+            plugin_daemon: daemon,
             registed_plugins: Arc::new(Mutex::new(HashMap::new())),
+            address,
             root_path,
-            channel: tx,
+            terminate: tx,
             connections: Mutex::new(HashMap::new()),
         };
         let service = Arc::new(service);
@@ -64,7 +63,7 @@ impl PluginDaemonService {
                 let app = Router::new()
                     .route("/api", get(root_handler))
                     .route("/api/regist", get(regist_handler))
-                    .route("/api/sig", post(sign_handler))
+                    .route("/api/sig", post(sig_handler))
                     .route("/api/verify", post(verify_handler))
                     .route("/api/connect", get(connect_handler))
                     .route(
@@ -77,12 +76,7 @@ impl PluginDaemonService {
                     .with_state(service.clone());
                 axum::serve(tcp_listener, app)
                     .with_graceful_shutdown(async move {
-                        loop {
-                            match service.channel.subscribe().recv().await.unwrap() {
-                                DaemonChannelType::Terminate => break,
-                                _ => (),
-                            }
-                        }
+                        let _ = service.terminate.subscribe().recv().await;
                     })
                     .await
                     .unwrap();
@@ -92,40 +86,47 @@ impl PluginDaemonService {
         Ok(service)
     }
 
+    pub async fn start_local_plugin(&self) -> anyhow::Result<()> {
+        let plugins_dir = self.root_path.join("plugins");
+        if !plugins_dir.exists() {
+            return Ok(());
+        }
+
+        for entry in fs::read_dir(&plugins_dir)? {
+            let entry = entry?;
+            let plugin_server = PluginServer::new(
+                entry.path(),
+                Options {
+                    port: 0,
+                    daemon_address: String::new(),
+                    regist_address: None,
+                },
+            )
+            .await?;
+        }
+        todo!()
+    }
+
     pub async fn stop(&self) -> anyhow::Result<()> {
-        self.channel.send(DaemonChannelType::Terminate)?;
+        self.terminate.send(())?;
         Ok(())
     }
 
     pub async fn wait(&self) -> anyhow::Result<()> {
-        self.channel.subscribe().recv().await?;
+        self.terminate.subscribe().recv().await?;
         Ok(())
     }
 }
 
-async fn root_handler(
-    State(service): State<Arc<PluginDaemonService>>,
-) -> (StatusCode, Json<Value>) {
+async fn root_handler(State(service): State<Arc<DaemonServer>>) -> (StatusCode, Json<Value>) {
     let out = json!({
         "public_key": &service.plugin_daemon.public_key,
     });
     (StatusCode::OK, Json(out))
 }
 
-async fn sign_handler(
-    State(state): State<Arc<PluginDaemonService>>,
-    Json(payload): Json<SignRequest>,
-) -> Result<Json<SignBox>, (StatusCode, String)> {
-    let sign = state
-        .plugin_daemon
-        .sign(payload.base64_url_data_string.clone())
-        .expect("create signature failed");
-
-    Ok(Json(sign))
-}
-
 async fn verify_handler(
-    State(_state): State<Arc<PluginDaemonService>>,
+    State(_state): State<Arc<DaemonServer>>,
     Json(payload): Json<VerifyRequest>,
 ) -> (StatusCode, Json<VerifyResponse>) {
     let sign_box = SignBox {

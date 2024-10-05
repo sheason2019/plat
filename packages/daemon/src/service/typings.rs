@@ -21,10 +21,3 @@ pub struct VerifyRequest {
 pub struct VerifyResponse {
     pub success: bool,
 }
-
-#[derive(Debug, Clone)]
-pub enum DaemonChannelType {
-    Terminate,
-    MutateDaemon,
-    DisconnectPlugin(String),
-}

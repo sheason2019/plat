@@ -4,8 +4,8 @@ import useDaemonScopes from "../../hooks/use-daemons";
 
 export default function DaemonPage() {
   const { daemonKey } = useParams();
-  const { findByDaemonKey } = useDaemonScopes();
-  const scope = findByDaemonKey(daemonKey!)!;
+  const { scopes } = useDaemonScopes();
+  const scope = scopes.find((item) => item.daemon.public_key === daemonKey)!;
 
   const navigate = useNavigate();
   const iframeRef = useRef<HTMLIFrameElement>(null);

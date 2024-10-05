@@ -27,7 +27,7 @@ async fn update_daemon_password_inner(
 ) -> anyhow::Result<()> {
     match state
         .host_assets
-        .daemons
+        .local_daemons
         .lock()
         .await
         .get_mut(&daemon_key.to_string())

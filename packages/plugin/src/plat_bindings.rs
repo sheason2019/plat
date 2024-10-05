@@ -4,7 +4,7 @@ use wasmtime::component::ResourceTable;
 use wasmtime_wasi::{async_trait, DirPerms, FilePerms, WasiCtx, WasiCtxBuilder, WasiView};
 use wasmtime_wasi_http::{WasiHttpCtx, WasiHttpView};
 
-use crate::wasi::PlatServer;
+use crate::server::wasi::PlatServer;
 
 wasmtime::component::bindgen!({
   path: "wit",

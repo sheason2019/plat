@@ -4,12 +4,12 @@ use daemon::daemon::PluginDaemon;
 use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex;
 
-use super::{daemon_asset::DaemonAsset, template_asset::TemplateAsset};
+use super::{local_daemon_asset::LocalDaemonAsset, template_asset::TemplateAsset};
 
 // 资产树
 pub struct HostAssets {
     pub path: PathBuf,
-    pub daemons: Mutex<HashMap<String, DaemonAsset>>,
+    pub local_daemons: Mutex<HashMap<String, LocalDaemonAsset>>,
     pub templates: Mutex<HashMap<String, TemplateAsset>>,
 }
 
@@ -18,7 +18,7 @@ impl HostAssets {
         let host_assets_dir = app_handle.path().app_data_dir()?.join("assets");
         let host_assets = HostAssets {
             path: host_assets_dir,
-            daemons: Mutex::new(HashMap::new()),
+            local_daemons: Mutex::new(HashMap::new()),
             templates: Mutex::new(HashMap::new()),
         };
 
@@ -43,11 +43,11 @@ impl HostAssets {
             TemplateAsset::new_from_default(app_handle).await?,
         );
 
-        let daemons_dir = host_assets.path.join("daemons");
-        if daemons_dir.exists() {
-            for entry in daemons_dir.read_dir()? {
+        let local_daemons_dir = host_assets.path.join("daemons").join("local");
+        if local_daemons_dir.exists() {
+            for entry in local_daemons_dir.read_dir()? {
                 let templates_map = host_assets.templates.lock().await;
-                let daemon_asset = DaemonAsset::new_from_path(entry?.path()).await?;
+                let daemon_asset = LocalDaemonAsset::new_from_path(entry?.path()).await?;
                 let template = templates_map
                     .get(
                         &fs::read_to_string(daemon_asset.path.join("assets_sha3_256"))
@@ -56,10 +56,11 @@ impl HostAssets {
                     .unwrap_or(templates_map.get(&"default".to_string()).unwrap());
                 template.reconciliation(&daemon_asset).await?;
 
-                host_assets.daemons.lock().await.insert(
-                    daemon_asset.get_plugin_daemon().await.daemon_key(),
-                    daemon_asset,
-                );
+                host_assets
+                    .local_daemons
+                    .lock()
+                    .await
+                    .insert(daemon_asset.plugin_daemon.public_key.clone(), daemon_asset);
             }
         }
 
@@ -67,7 +68,7 @@ impl HostAssets {
     }
 
     pub async fn up(&self) -> anyhow::Result<()> {
-        for daemon in self.daemons.lock().await.values() {
+        for daemon in self.local_daemons.lock().await.values() {
             daemon.up().await?;
         }
 
@@ -75,18 +76,19 @@ impl HostAssets {
     }
 
     pub async fn down(&self) -> anyhow::Result<()> {
-        for daemon in self.daemons.lock().await.values() {
+        for daemon in self.local_daemons.lock().await.values() {
             daemon.down().await?;
         }
 
         Ok(())
     }
 
-    pub async fn append_daemon(&self, plugin_daemon: PluginDaemon) -> anyhow::Result<()> {
+    pub async fn append_local_daemon(&self, plugin_daemon: PluginDaemon) -> anyhow::Result<()> {
         let daemon_dir = self
             .path
             .join("daemons")
-            .join(urlencoding::encode(plugin_daemon.daemon_key().as_str()).as_ref());
+            .join("local")
+            .join(&plugin_daemon.public_key);
 
         if !daemon_dir.exists() {
             fs::create_dir_all(&daemon_dir)?;
@@ -97,19 +99,19 @@ impl HostAssets {
             serde_json::to_string(&plugin_daemon)?,
         )?;
 
-        let daemon_asset = DaemonAsset::new_from_path(daemon_dir).await?;
+        let daemon_asset = LocalDaemonAsset::new_from_path(daemon_dir).await?;
         daemon_asset.up().await?;
 
-        self.daemons
+        self.local_daemons
             .lock()
             .await
-            .insert(plugin_daemon.daemon_key(), daemon_asset);
+            .insert(plugin_daemon.public_key.clone(), daemon_asset);
 
         Ok(())
     }
 
-    pub async fn delete_daemon(&self, daemon_key: String) -> anyhow::Result<()> {
-        match self.daemons.lock().await.remove(&daemon_key) {
+    pub async fn delete_local_daemon(&self, daemon_key: String) -> anyhow::Result<()> {
+        match self.local_daemons.lock().await.remove(&daemon_key) {
             None => (),
             Some(asset) => {
                 asset.down().await?;

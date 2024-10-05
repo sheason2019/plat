@@ -13,10 +13,10 @@ use axum::{
     response::IntoResponse,
 };
 
-use crate::service::{connection::Connection, PluginDaemonService};
+use crate::service::{connection::Connection, DaemonServer};
 
 pub async fn connect_handler(
-    State(service): State<Arc<PluginDaemonService>>,
+    State(service): State<Arc<DaemonServer>>,
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
     ws.on_upgrade(|mut socket| async move {

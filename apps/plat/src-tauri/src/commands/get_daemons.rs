@@ -1,5 +1,4 @@
 use crate::typings::HostState;
-use plugin::models::PluginConfig;
 use serde_json::json;
 
 #[tauri::command]
@@ -15,13 +14,10 @@ pub async fn get_daemons(state: HostState<'_>) -> Result<String, ()> {
 
 async fn get_daemons_inner(state: HostState<'_>) -> anyhow::Result<String> {
     let mut daemons: Vec<serde_json::Value> = Vec::new();
-    for daemon in state.host_assets.daemons.lock().await.values() {
-        let plugin_map = daemon.plugins.lock().await;
-        let plugin_daemon = daemon.get_plugin_daemon().await;
-        let plugins: Vec<&PluginConfig> = plugin_map.values().map(|i| &i.plugin_config).collect();
+    for daemon in state.host_assets.local_daemons.lock().await.values() {
+        let plugin_daemon = daemon.to_json_string().await?;
         daemons.push(json!({
             "daemon": plugin_daemon,
-            "plugins": &plugins,
         }));
     }
 

@@ -9,10 +9,10 @@ use axum::{
 };
 use plugin::models::PluginConfig;
 
-use crate::service::PluginDaemonService;
+use crate::service::DaemonServer;
 
 pub async fn regist_handler(
-    State(service): State<Arc<PluginDaemonService>>,
+    State(service): State<Arc<DaemonServer>>,
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
     ws.on_upgrade(|mut socket| async move {

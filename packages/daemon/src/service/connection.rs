@@ -5,7 +5,7 @@ use plugin::models::PluginConfig;
 use serde_json::json;
 use x25519_dalek::{PublicKey, SharedSecret};
 
-use super::PluginDaemonService;
+use super::DaemonServer;
 
 pub struct Connection {
     pub public_key: PublicKey,
@@ -103,7 +103,7 @@ impl Connection {
         let _ = self.stop_sender.send(reason.to_string());
     }
 
-    pub async fn send_daemon(&self, service: &PluginDaemonService) -> anyhow::Result<()> {
+    pub async fn send_daemon(&self, service: &DaemonServer) -> anyhow::Result<()> {
         self.send_channel
             .send(Message::Text(serde_json::to_string(&json!({
                 "type": "daemon",

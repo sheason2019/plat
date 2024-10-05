@@ -24,7 +24,7 @@ async fn remove_daemon_inner(
 ) -> anyhow::Result<()> {
     state
         .host_assets
-        .delete_daemon(daemon_key.to_string())
+        .delete_local_daemon(daemon_key.to_string())
         .await?;
     app_handle.emit("update-daemons", ())?;
 
