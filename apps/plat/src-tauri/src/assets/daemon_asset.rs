@@ -62,8 +62,7 @@ impl DaemonAsset {
         }
 
         let plugin_daemon_service =
-            PluginDaemonService::new(self.plugin_daemon.clone(), self.path.join("assets"), 0)
-                .await?;
+            PluginDaemonService::new(self.plugin_daemon.clone(), self.path.clone(), 0).await?;
         plugin_daemon_service_option.replace(plugin_daemon_service);
 
         for plugin in self.plugins.lock().await.values() {
@@ -88,10 +87,7 @@ impl DaemonAsset {
         Ok(())
     }
 
-    pub async fn update_password(
-        &mut self,
-        new_password: String,
-    ) -> anyhow::Result<()> {
+    pub async fn update_password(&mut self, new_password: String) -> anyhow::Result<()> {
         // 停止服务
         self.down().await?;
 

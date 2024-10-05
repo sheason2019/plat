@@ -1,9 +1,5 @@
 import { createContext, useContext } from "react";
-
-export interface IDaemonContext {
-  fromOrigin: string;
-  password: string;
-}
+import { IDaemonContext } from "./typings";
 
 export const daemonContext = createContext<IDaemonContext | null>(null);
 

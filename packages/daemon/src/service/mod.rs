@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Deref, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use axum::{
     extract::State,
@@ -7,7 +7,10 @@ use axum::{
     Json, Router,
 };
 use connection::Connection;
-use handlers::{connect_handler, regist_handler};
+use handlers::{
+    connect_handler, delete_plugin_handler, install_plugin_handler, list_plugin_handler,
+    regist_handler,
+};
 use plugin::models::PluginConfig;
 use serde_json::{json, Value};
 use tokio::sync::{broadcast::Sender, Mutex};
@@ -23,12 +26,18 @@ use crate::daemon::{PluginDaemon, SignBox};
 pub struct PluginDaemonService {
     pub plugin_daemon: PluginDaemon,
     pub registed_plugins: Arc<Mutex<HashMap<String, PluginConfig>>>,
+    root_path: PathBuf,
     channel: Sender<DaemonChannelType>,
     connections: Mutex<HashMap<String, Arc<Connection>>>,
 }
 
 impl PluginDaemonService {
-    pub async fn new(daemon: PluginDaemon, assets_path: PathBuf, port: u16) -> anyhow::Result<Arc<Self>> {
+    pub async fn new(
+        daemon: PluginDaemon,
+        root_path: PathBuf,
+        port: u16,
+    ) -> anyhow::Result<Arc<Self>> {
+        let assets_path = root_path.join("assets");
         let tcp_listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", port)).await?;
         let address = format!("http://{}", tcp_listener.local_addr()?.to_string());
 
@@ -40,6 +49,7 @@ impl PluginDaemonService {
         let service = PluginDaemonService {
             plugin_daemon,
             registed_plugins: Arc::new(Mutex::new(HashMap::new())),
+            root_path,
             channel: tx,
             connections: Mutex::new(HashMap::new()),
         };
@@ -57,6 +67,12 @@ impl PluginDaemonService {
                     .route("/api/sig", post(sign_handler))
                     .route("/api/verify", post(verify_handler))
                     .route("/api/connect", get(connect_handler))
+                    .route(
+                        "/api/plugin",
+                        get(list_plugin_handler)
+                            .post(install_plugin_handler)
+                            .delete(delete_plugin_handler),
+                    )
                     .fallback_service(serve_dir)
                     .with_state(service.clone());
                 axum::serve(tcp_listener, app)
@@ -91,10 +107,7 @@ async fn root_handler(
     State(service): State<Arc<PluginDaemonService>>,
 ) -> (StatusCode, Json<Value>) {
     let out = json!({
-        "daemon": {
-            "public_key": &service.plugin_daemon.public_key,
-        },
-        "plugins": service.registed_plugins.lock().await.deref(),
+        "public_key": &service.plugin_daemon.public_key,
     });
     (StatusCode::OK, Json(out))
 }

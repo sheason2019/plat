@@ -37,7 +37,11 @@ impl PluginArgs {
     pub async fn work(&self) -> anyhow::Result<()> {
         match self.command.as_ref() {
             Some(PluginCommands::Tar { path, output }) => {
-                bundler::plugin::tar(path.clone(), output.clone())
+                let config_path = match path.is_dir() {
+                    true => path.join("plugin.json"),
+                    false => path.clone(),
+                };
+                bundler::plugin::tar(config_path, output.clone())
             }
             Some(PluginCommands::Untar { path, output }) => {
                 bundler::plugin::untar(path.clone(), output.clone())

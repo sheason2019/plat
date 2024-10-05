@@ -41,7 +41,16 @@ impl DaemonArgs {
 
                 let path = path.as_ref().unwrap();
                 let daemon: PluginDaemon = serde_json::from_slice(&fs::read(path)?)?;
-                let service = PluginDaemonService::new(daemon, env::current_dir()?, port).await?;
+                let service = PluginDaemonService::new(
+                    daemon,
+                    env::current_dir()?
+                        .join(path)
+                        .parent()
+                        .unwrap()
+                        .to_path_buf(),
+                    port,
+                )
+                .await?;
                 println!("start daemon success:");
                 println!(
                     "daemon address: {}",

@@ -54,9 +54,12 @@ impl PluginDaemon {
     }
 
     pub fn sign(&self, base64_url_data_string: String) -> anyhow::Result<SignBox> {
-        let mut signing_key = SigningKey::from_bytes(&clone_key(
-            BASE64_URL_SAFE.decode(self.private_key.clone())?,
-        )?);
+        let mut signing_key = SigningKey::from_bytes(
+            BASE64_URL_SAFE
+                .decode(self.private_key.clone())?
+                .as_slice()
+                .try_into()?,
+        );
 
         let data_bytes = BASE64_URL_SAFE.decode(base64_url_data_string)?;
         let sig = signing_key.sign(&data_bytes);
@@ -76,9 +79,12 @@ pub struct SignBox {
 
 impl SignBox {
     pub fn verify(&self, base64_url_data_string: String) -> anyhow::Result<()> {
-        let verifying_key = VerifyingKey::from_bytes(&clone_key(
-            BASE64_URL_SAFE.decode(self.public_key.clone())?,
-        )?)?;
+        let verifying_key = VerifyingKey::from_bytes(
+            BASE64_URL_SAFE
+                .decode(self.public_key.clone())?
+                .as_slice()
+                .try_into()?,
+        )?;
 
         let signature: Signature =
             Signature::from_slice(&BASE64_URL_SAFE.decode(&self.signature)?)?;
@@ -89,13 +95,5 @@ impl SignBox {
             Ok(()) => Ok(()),
             Err(_) => Err(anyhow!("签名校验不通过")),
         }
-    }
-}
-
-fn clone_key(value: Vec<u8>) -> anyhow::Result<[u8; 32]> {
-    let slice = value.as_slice();
-    match slice.try_into() {
-        Ok(val) => Ok(val),
-        Err(_) => Err(anyhow!("解析密钥失败")),
     }
 }

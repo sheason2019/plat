@@ -1,6 +1,7 @@
 import { PropsWithChildren, useEffect, useState } from "react";
-import { daemonContext, IDaemonContext } from "./context";
+import { daemonContext } from "./context";
 import { Spinner } from "@nextui-org/react";
+import { IDaemonContext } from "./typings";
 
 const { Provider } = daemonContext;
 
