@@ -2,10 +2,12 @@ import { useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import useDaemonScopes from "../../hooks/use-daemons";
 
-export default function DaemonPage() {
+export default function LocalDaemonPage() {
   const { daemonKey } = useParams();
   const { scopes } = useDaemonScopes();
-  const scope = scopes.find((item) => item.daemon.public_key === daemonKey)!;
+  const daemon = scopes.local_daemons.find(
+    (item) => item.public_key === daemonKey
+  )!;
 
   const navigate = useNavigate();
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -35,23 +37,19 @@ export default function DaemonPage() {
           type: "context",
           payload: {
             fromOrigin: location.origin,
-            password: scope.daemon.password,
-            publicKey: scope.daemon.public_key,
+            password: daemon.password,
+            publicKey: daemon.public_key,
           },
         }),
-        new URL(scope.daemon.address).origin
+        new URL(daemon.address).origin
       );
       i++;
     }, 100);
 
     return () => clearInterval(intervalRef.current);
-  }, []);
+  }, [daemon]);
 
   return (
-    <iframe
-      ref={iframeRef}
-      src={scope.daemon.address}
-      className="w-full h-full"
-    />
+    <iframe ref={iframeRef} src={daemon.address} className="w-full h-full" />
   );
 }

@@ -5,7 +5,7 @@ import { DaemonScope } from "../models/core";
 export default function useDaemonScopes() {
   const { data, mutate } = useSWR(
     "get_daemons",
-    async (): Promise<DaemonScope[]> => {
+    async (): Promise<DaemonScope> => {
       return JSON.parse(await invoke("get_daemons"));
     },
     { suspense: true }

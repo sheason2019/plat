@@ -18,8 +18,8 @@ export default function IndexPage() {
         }
       />
       <div className="grid grid-cols-1 md:grid-cols-2 mt-3 gap-3">
-        {scopes?.map((scope) => (
-          <LocalDaemonCard key={scope.daemon.public_key} scope={scope} />
+        {scopes?.local_daemons.map((daemon) => (
+          <LocalDaemonCard key={daemon.public_key} daemon={daemon} />
         ))}
       </div>
       <CreateDaemon />

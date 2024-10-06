@@ -26,11 +26,13 @@ enum Variant {
 interface CreateDaemonData {
   variant: Variant;
   remoteAddress: string;
+  remotePassword: string;
 }
 
 const DEFAULT_VALUE: CreateDaemonData = {
   variant: Variant.Null,
   remoteAddress: "",
+  remotePassword: "",
 } as const;
 
 export default function CreateDaemonModal({ isOpen, onClose }: Props) {
@@ -65,13 +67,28 @@ export default function CreateDaemonModal({ isOpen, onClose }: Props) {
             <SelectItem key={Variant.Remote}>远程服务</SelectItem>
           </Select>
           {form.variant === Variant.Remote && (
-            <Input
-              label="远程服务地址"
-              value={form.remoteAddress}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, remoteAddress: e.target.value }))
-              }
-            />
+            <>
+              <Input
+                label="远程服务地址"
+                value={form.remoteAddress}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    remoteAddress: e.target.value,
+                  }))
+                }
+              />
+              <Input
+                label="远程服务密码"
+                value={form.remotePassword}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    removePassword: e.target.value,
+                  }))
+                }
+              />
+            </>
           )}
         </ModalBody>
         <ModalFooter>

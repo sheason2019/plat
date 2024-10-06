@@ -8,10 +8,10 @@ import {
   useDisclosure,
 } from "@nextui-org/react";
 import { invoke } from "@tauri-apps/api/core";
-import { DaemonScope } from "../../../models/core";
+import { Daemon } from "../../../models/core";
 
 interface Props {
-  scope: DaemonScope;
+  daemon: Daemon;
 }
 
 export default function DeleteDaemonButton({}: Props) {

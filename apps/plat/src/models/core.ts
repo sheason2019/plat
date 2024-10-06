@@ -1,11 +1,5 @@
 export interface DaemonScope {
-  daemon: Daemon;
-}
-
-export enum DaemonVariant {
-  Local = "Local",
-  Remote = "Remote",
-  Hybrid = "Hybrid",
+  local_daemons: Daemon[],
 }
 
 export interface Daemon {
