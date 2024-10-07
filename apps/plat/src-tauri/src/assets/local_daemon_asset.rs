@@ -33,7 +33,6 @@ impl LocalDaemonAsset {
         };
         let value = json!({
             "public_key": &service.daemon.public_key,
-            "password": &service.daemon.password,
             "address": &service.address,
         });
         Ok(value)
@@ -59,23 +58,6 @@ impl LocalDaemonAsset {
         }
 
         *lock.deref_mut() = None;
-
-        Ok(())
-    }
-
-    pub async fn update_password(&mut self, new_password: String) -> anyhow::Result<()> {
-        // 停止服务
-        self.down().await?;
-
-        // 修改 daemon
-        self.plugin_daemon.password = new_password;
-        fs::write(
-            self.path.join("daemon.json"),
-            serde_json::to_string(&self.plugin_daemon)?,
-        )?;
-
-        // 重启服务
-        self.up().await?;
 
         Ok(())
     }

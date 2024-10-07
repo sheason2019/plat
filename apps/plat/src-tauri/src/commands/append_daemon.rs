@@ -10,9 +10,8 @@ pub async fn append_daemon(
     app_handle: tauri::AppHandle,
     variant: &str,
     remote_address: &str,
-    remote_password: &str,
 ) -> Result<(), ()> {
-    match append_daemon_inner(state, app_handle, variant, remote_address, remote_password).await {
+    match append_daemon_inner(state, app_handle, variant, remote_address).await {
         Ok(val) => Ok(val),
         Err(e) => {
             println!("append command error: {}", e);
@@ -26,7 +25,6 @@ async fn append_daemon_inner(
     app_handle: tauri::AppHandle,
     variant: &str,
     remote_address: &str,
-    remote_password: &str,
 ) -> anyhow::Result<()> {
     match variant {
         "local-generate" => {
@@ -42,7 +40,6 @@ async fn append_daemon_inner(
         "remote" => {
             let remote_daemon = RemoteDaemon {
                 address: remote_address.to_string(),
-                password: remote_password.to_string(),
             };
             state
                 .host_assets

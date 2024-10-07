@@ -1,7 +1,5 @@
 use assets::host_assets::HostAssets;
-use commands::{
-    append_daemon, get_daemons, open_daemon_window, remove_daemon, update_daemon_password,
-};
+use commands::{append_daemon, get_daemons, open_daemon_window, remove_daemon};
 use tauri::{Emitter, Manager};
 use tokio::sync::RwLock;
 use typings::HostStateInner;
@@ -45,7 +43,6 @@ pub fn run() {
             get_daemons,
             append_daemon,
             remove_daemon,
-            update_daemon_password,
             open_daemon_window,
         ])
         .run(tauri::generate_context!())

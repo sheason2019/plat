@@ -12,5 +12,4 @@ pub type HostState<'a> = State<'a, HostStateInner>;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RemoteDaemon {
     pub address: String,
-    pub password: String,
 }

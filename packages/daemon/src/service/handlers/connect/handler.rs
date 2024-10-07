@@ -1,7 +1,3 @@
-use anyhow::anyhow;
-use base64::prelude::*;
-use rand::Rng;
-use sha3::{Digest, Sha3_256};
 use std::{borrow::Cow, ops::Deref, ptr, sync::Arc};
 
 use axum::{
@@ -39,27 +35,6 @@ async fn handle_connection(
     socket: &mut WebSocket,
     server: Arc<DaemonServer>,
 ) -> anyhow::Result<()> {
-    // 通过时间戳计算盐值
-    let salt_string: String = rand::thread_rng()
-        .sample_iter(&rand::distributions::Alphanumeric)
-        .take(8)
-        .map(char::from)
-        .collect();
-    socket.send(Message::Text(salt_string.clone())).await?;
-
-    let message = socket.recv().await.unwrap()?;
-    let client_password_string = message.to_text()?;
-    let client_password_hash = BASE64_URL_SAFE.decode(client_password_string)?;
-
-    let mut hasher = Sha3_256::new();
-    hasher.update(server.daemon.password.as_bytes());
-    hasher.update(salt_string.as_bytes());
-    let server_password_hash = hasher.finalize();
-
-    if !compare_slice(&server_password_hash, &client_password_hash) {
-        return Err(anyhow!("密码验证失败"));
-    }
-
     // 创建 Connection
     socket.send(Message::Text("OK".to_string())).await.unwrap();
 
@@ -82,18 +57,4 @@ async fn handle_connection(
     }
 
     Ok(())
-}
-
-fn compare_slice(a: &[u8], b: &[u8]) -> bool {
-    if a.len() != b.len() {
-        return false;
-    }
-
-    for i in 0..a.len() {
-        if a[i] != b[i] {
-            return false;
-        }
-    }
-
-    true
 }

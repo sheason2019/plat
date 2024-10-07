@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 pub struct Daemon {
     pub public_key: String,
     pub private_key: String,
-    pub password: String,
 }
 
 impl Daemon {
@@ -16,7 +15,6 @@ impl Daemon {
         Daemon {
             public_key: String::new(),
             private_key: String::new(),
-            password: String::new(),
         }
     }
 
@@ -28,7 +26,6 @@ impl Daemon {
         Ok(Daemon {
             private_key: BASE64_URL_SAFE.encode(signing_key.as_bytes()),
             public_key: BASE64_URL_SAFE.encode(verifying_key.as_bytes()),
-            password: "".to_string(),
         })
     }
 

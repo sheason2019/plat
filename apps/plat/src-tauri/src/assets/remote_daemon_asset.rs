@@ -25,18 +25,7 @@ impl RemoteDaemonAsset {
     pub async fn to_json_string(&self) -> anyhow::Result<Value> {
         let value = json!({
             "address": &self.remote_daemon.address,
-            "password": &self.remote_daemon.password,
         });
         Ok(value)
-    }
-
-    pub async fn update_password(&mut self, new_password: String) -> anyhow::Result<()> {
-        self.remote_daemon.password = new_password;
-        fs::write(
-            self.path.join("daemon.json"),
-            serde_json::to_string(&self.remote_daemon)?,
-        )?;
-
-        Ok(())
     }
 }
