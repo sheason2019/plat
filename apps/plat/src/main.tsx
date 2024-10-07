@@ -5,9 +5,10 @@ import "@fontsource-variable/noto-sans-sc";
 
 import "./main.css";
 import IndexPage from "./routes";
-import LocalDaemonPage from "./routes/local-daemon";
 import Layout from "./routes/layout";
 import TemplatesPage from "./routes/templates";
+import LocalDaemonPage from "./routes/daemon/local";
+import RemoteDaemonPage from "./routes/daemon/remote";
 
 const router = createBrowserRouter([
   {
@@ -23,8 +24,12 @@ const router = createBrowserRouter([
         element: <TemplatesPage />,
       },
       {
-        path: "/daemons/local/:daemonKey",
+        path: "daemons/local/:publicKey",
         element: <LocalDaemonPage />,
+      },
+      {
+        path: "daemons/remote/:address",
+        element: <RemoteDaemonPage />,
       },
     ],
   },

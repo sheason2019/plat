@@ -122,6 +122,15 @@ impl HostAssets {
         let daemon_asset = LocalDaemonAsset::new_from_path(daemon_dir).await?;
         daemon_asset.up().await?;
 
+        let templates_map = self.templates.lock().await;
+        let template = templates_map
+            .get(
+                &fs::read_to_string(daemon_asset.path.join("assets_sha3_256"))
+                    .unwrap_or("default".to_string()),
+            )
+            .unwrap_or(templates_map.get(&"default".to_string()).unwrap());
+        template.reconciliation(&daemon_asset).await?;
+
         self.local_daemons
             .lock()
             .await

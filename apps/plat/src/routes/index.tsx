@@ -1,12 +1,12 @@
 import LocalDaemonCard from "./components/local-daemon-card";
-import useDaemonScopes from "../hooks/use-daemons";
+import useDaemons from "../hooks/use-daemons";
 import Header from "./components/header";
 import CreateDaemon from "./components/create-daemon";
 import Navigation from "../components/navigation";
 import RemoteDaemonCard from "./components/remote-daemon-card";
 
 export default function IndexPage() {
-  const { scopes } = useDaemonScopes();
+  const { daemons: scopes } = useDaemons();
 
   return (
     <div className="container mx-auto px-2">
