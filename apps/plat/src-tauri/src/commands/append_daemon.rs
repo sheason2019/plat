@@ -31,7 +31,12 @@ async fn append_daemon_inner(
     match variant {
         "local-generate" => {
             let plugin_daemon = Daemon::new_random()?;
-            state.host_assets.append_local_daemon(plugin_daemon).await?;
+            state
+                .host_assets
+                .read()
+                .await
+                .append_local_daemon(plugin_daemon)
+                .await?;
             app_handle.emit("update-daemons", ())?;
         }
         "remote" => {
@@ -41,6 +46,8 @@ async fn append_daemon_inner(
             };
             state
                 .host_assets
+                .read()
+                .await
                 .append_remote_daemon(remote_daemon)
                 .await?;
             app_handle.emit("update-daemons", ())?;

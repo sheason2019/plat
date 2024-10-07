@@ -20,6 +20,15 @@ pub struct HostAssets {
 }
 
 impl HostAssets {
+    pub fn empty() -> Self {
+        HostAssets {
+            path: PathBuf::new(),
+            local_daemons: Mutex::new(HashMap::new()),
+            remote_daemons: Mutex::new(HashMap::new()),
+            templates: Mutex::new(HashMap::new()),
+        }
+    }
+
     pub async fn new_from_scan(app_handle: &AppHandle) -> anyhow::Result<Self> {
         let host_assets_dir = app_handle.path().app_data_dir()?.join("assets");
         let host_assets = HostAssets {

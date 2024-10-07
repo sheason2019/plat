@@ -8,13 +8,15 @@ import {
 } from "@nextui-org/react";
 import { Daemon } from "../../../models/core";
 import DeleteDaemonButton from "./delete-daemon-button";
-import { Link } from "react-router-dom";
+import useOpenDaemon from "../../hooks/use-open-daemon";
 
 interface Props {
   daemon: Daemon;
 }
 
 export default function LocalDaemonCard({ daemon }: Props) {
+  const { openDaemon } = useOpenDaemon();
+
   return (
     <Card>
       <CardHeader>
@@ -31,11 +33,7 @@ export default function LocalDaemonCard({ daemon }: Props) {
       <CardFooter>
         <DeleteDaemonButton publicKey={daemon.public_key} />
         <div className="flex-1" />
-        <Button
-          color="primary"
-          as={Link}
-          to={`/daemons/local/${daemon.public_key}`}
-        >
+        <Button color="primary" onClick={() => openDaemon(daemon)}>
           进入
         </Button>
       </CardFooter>

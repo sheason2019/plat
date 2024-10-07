@@ -28,6 +28,8 @@ async fn remove_daemon_inner(
         Some(public_key) => {
             state
                 .host_assets
+                .read()
+                .await
                 .delete_local_daemon(public_key.to_string())
                 .await?;
         }
@@ -38,6 +40,8 @@ async fn remove_daemon_inner(
         Some(address) => {
             state
                 .host_assets
+                .read()
+                .await
                 .delete_remote_daemon(address.to_string())
                 .await?;
         }
