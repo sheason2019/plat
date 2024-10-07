@@ -1,20 +1,20 @@
 use std::{fs, ops::DerefMut, path::PathBuf, sync::Arc};
 
 use anyhow::anyhow;
-use daemon::{daemon::PluginDaemon, service::DaemonServer};
+use daemon::{daemon::Daemon, service::DaemonServer};
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
 
 pub struct LocalDaemonAsset {
     pub path: PathBuf,
-    pub plugin_daemon: PluginDaemon,
+    pub plugin_daemon: Daemon,
     plugin_daemon_service: Mutex<Option<Arc<DaemonServer>>>,
 }
 
 impl LocalDaemonAsset {
     pub async fn new_from_path(path: PathBuf) -> anyhow::Result<Self> {
         let plugin_daemon_bytes = fs::read(path.join("daemon.json"))?;
-        let plugin_daemon: PluginDaemon = serde_json::from_slice(&plugin_daemon_bytes)?;
+        let plugin_daemon: Daemon = serde_json::from_slice(&plugin_daemon_bytes)?;
 
         let daemon_asset = LocalDaemonAsset {
             path,
@@ -32,8 +32,8 @@ impl LocalDaemonAsset {
             None => return Err(anyhow!("Local Daemon 服务尚未启动")),
         };
         let value = json!({
-            "public_key": &service.plugin_daemon.public_key,
-            "password": &service.plugin_daemon.password,
+            "public_key": &service.daemon.public_key,
+            "password": &service.daemon.password,
             "address": &service.address,
         });
         Ok(value)

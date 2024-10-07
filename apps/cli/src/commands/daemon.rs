@@ -1,7 +1,7 @@
 use std::{env, fs, path::PathBuf};
 
 use clap::{command, Args, Subcommand};
-use daemon::{daemon::PluginDaemon, service::DaemonServer};
+use daemon::{daemon::Daemon, service::DaemonServer};
 
 #[derive(Debug, Args)]
 pub struct DaemonArgs {
@@ -40,7 +40,7 @@ impl DaemonArgs {
                 };
 
                 let path = path.as_ref().unwrap();
-                let daemon: PluginDaemon = serde_json::from_slice(&fs::read(path)?)?;
+                let daemon: Daemon = serde_json::from_slice(&fs::read(path)?)?;
                 let service = DaemonServer::new(
                     daemon,
                     env::current_dir()?

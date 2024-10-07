@@ -8,7 +8,7 @@ use axum::{
     Json,
 };
 use futures::TryStreamExt;
-use plugin::models::PluginConfig;
+use plugin::models::Plugin;
 use reqwest::StatusCode;
 use serde_json::{json, Value};
 use tokio::{
@@ -22,8 +22,8 @@ use crate::service::DaemonServer;
 pub async fn list_plugin_handler(
     State(service): State<Arc<DaemonServer>>,
 ) -> (StatusCode, Json<Value>) {
-    let registed_plugins = service.registed_plugins.lock().await;
-    let plugins: Vec<&PluginConfig> = registed_plugins.values().collect();
+    let registed_plugins = service.plugins.lock().await;
+    let plugins: Vec<&Plugin> = registed_plugins.values().collect();
     let plugins = json!({
         "plugins": &plugins,
     });

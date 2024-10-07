@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use crate::models::Plugin;
 use crate::server::wasi::PlatServer;
 use http_body_util::{BodyExt, Full};
 use hyper::server::conn::http1;
@@ -107,6 +108,10 @@ impl PluginServer {
         })
     }
 
+    pub fn plugin(&self) -> &Plugin {
+        &self.plat_server.plugin_config
+    }
+
     pub async fn stop(&self) {
         let _ = self.terminate.send(());
     }
@@ -118,7 +123,7 @@ impl PluginServer {
 
 fn send_plugin_json(
     _req: hyper::Request<hyper::body::Incoming>,
-    plugin_config: &crate::models::PluginConfig,
+    plugin_config: &crate::models::Plugin,
 ) -> Result<hyper::Response<HyperOutgoingBody>> {
     let plugin_json = serde_json::to_string(&plugin_config)?.as_bytes().to_vec();
 

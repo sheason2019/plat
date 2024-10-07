@@ -16,13 +16,13 @@ use wasmtime_wasi_http::body::HyperOutgoingBody;
 use wasmtime_wasi_http::WasiHttpView;
 use x25519_dalek::{EphemeralSecret, PublicKey};
 
-use crate::models::PluginConfig;
+use crate::models::Plugin;
 use crate::plat_bindings;
 
 pub struct PlatServer {
     pub pre: plat_bindings::PlatWorldPre<plat_bindings::Component>,
     pub daemon_public_key: String,
-    pub plugin_config: PluginConfig,
+    pub plugin_config: Plugin,
     pub plugin_config_directory: PathBuf,
     pub daemon_address: String,
 }
@@ -38,7 +38,7 @@ impl PlatServer {
 
         let plugin_config_directory = plugin_config_path.parent().unwrap().to_path_buf();
         let plugin_config_bytes = fs::read(plugin_config_path)?;
-        let plugin_config: PluginConfig = serde_json::from_slice(&plugin_config_bytes)?;
+        let plugin_config: Plugin = serde_json::from_slice(&plugin_config_bytes)?;
 
         let mut config = Config::new();
         config.async_support(true);

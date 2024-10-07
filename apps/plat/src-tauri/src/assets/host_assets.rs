@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
-use daemon::daemon::PluginDaemon;
+use daemon::daemon::Daemon;
 use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex;
 
@@ -103,7 +103,7 @@ impl HostAssets {
         Ok(())
     }
 
-    pub async fn append_local_daemon(&self, plugin_daemon: PluginDaemon) -> anyhow::Result<()> {
+    pub async fn append_local_daemon(&self, plugin_daemon: Daemon) -> anyhow::Result<()> {
         let daemon_dir = self
             .path
             .join("daemons")

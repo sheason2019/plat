@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use daemon::daemon::PluginDaemon;
+use daemon::daemon::Daemon;
 use tauri::Emitter;
 
 use crate::typings::{HostState, RemoteDaemon};
@@ -30,7 +30,7 @@ async fn append_daemon_inner(
 ) -> anyhow::Result<()> {
     match variant {
         "local-generate" => {
-            let plugin_daemon = PluginDaemon::new_random()?;
+            let plugin_daemon = Daemon::new_random()?;
             state.host_assets.append_local_daemon(plugin_daemon).await?;
             app_handle.emit("update-daemons", ())?;
         }

@@ -7,7 +7,7 @@ use axum::{
     },
     response::IntoResponse,
 };
-use plugin::models::PluginConfig;
+use plugin::models::Plugin;
 
 use crate::service::DaemonServer;
 
@@ -25,10 +25,10 @@ pub async fn regist_handler(
             Message::Text(data) => data,
             _ => panic!("Message failed"),
         };
-        let plugin_config: PluginConfig = serde_json::from_str(&data).unwrap();
+        let plugin_config: Plugin = serde_json::from_str(&data).unwrap();
         let name = plugin_config.name.clone();
 
-        if service.registed_plugins.lock().await.contains_key(&name) {
+        if service.plugins.lock().await.contains_key(&name) {
             socket
                 .send(Message::Close(Some(CloseFrame {
                     code: 1000,
@@ -40,7 +40,7 @@ pub async fn regist_handler(
         }
 
         socket
-            .send(Message::Text(service.plugin_daemon.public_key.clone()))
+            .send(Message::Text(service.daemon.public_key.clone()))
             .await
             .unwrap();
         match socket.recv().await.unwrap().unwrap() {
@@ -58,7 +58,7 @@ pub async fn regist_handler(
         };
 
         service
-            .registed_plugins
+            .plugins
             .lock()
             .await
             .insert(name.clone(), plugin_config);
@@ -126,15 +126,15 @@ pub async fn regist_handler(
             }
         });
 
-        for connection in service.connections.lock().await.values() {
+        for connection in service.connections.lock().await.iter() {
             let _ = connection.send_daemon(&service).await;
         }
 
         let _ = stop_sender.subscribe().recv().await;
 
-        service.registed_plugins.lock().await.remove(&name);
+        service.plugins.lock().await.remove(&name);
 
-        for connection in service.connections.lock().await.values() {
+        for connection in service.connections.lock().await.iter() {
             let _ = connection.send_daemon(&service).await;
         }
     })

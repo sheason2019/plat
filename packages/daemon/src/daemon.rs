@@ -5,15 +5,15 @@ use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct PluginDaemon {
+pub struct Daemon {
     pub public_key: String,
     pub private_key: String,
     pub password: String,
 }
 
-impl PluginDaemon {
+impl Daemon {
     pub const fn default() -> Self {
-        PluginDaemon {
+        Daemon {
             public_key: String::new(),
             private_key: String::new(),
             password: String::new(),
@@ -25,7 +25,7 @@ impl PluginDaemon {
         let signing_key: SigningKey = SigningKey::generate(&mut csprng);
         let verifying_key = signing_key.verifying_key();
 
-        Ok(PluginDaemon {
+        Ok(Daemon {
             private_key: BASE64_URL_SAFE.encode(signing_key.as_bytes()),
             public_key: BASE64_URL_SAFE.encode(verifying_key.as_bytes()),
             password: "".to_string(),

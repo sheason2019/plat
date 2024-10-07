@@ -12,7 +12,7 @@ pub async fn sig_handler(
     Json(payload): Json<SignRequest>,
 ) -> Result<Json<SignBox>, (StatusCode, String)> {
     let sign = state
-        .plugin_daemon
+        .daemon
         .sign(payload.base64_url_data_string.clone())
         .expect("create signature failed");
 

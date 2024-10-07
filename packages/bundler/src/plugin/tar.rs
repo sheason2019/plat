@@ -2,7 +2,7 @@ use std::{fs, path::PathBuf};
 
 use anyhow::Context;
 use flate2::{write::GzEncoder, Compression};
-use plugin::models::PluginConfig;
+use plugin::models::Plugin;
 
 pub fn tar(config_path: PathBuf, output_path: PathBuf) -> anyhow::Result<()> {
     let tar_gz = std::fs::File::create(output_path.clone())?;
@@ -12,7 +12,7 @@ pub fn tar(config_path: PathBuf, output_path: PathBuf) -> anyhow::Result<()> {
     // 读取 Plugin 配置
     let config_dir = config_path.parent().unwrap().to_path_buf();
     let config_bytes = fs::read(&config_path).context("读取 Plugin 配置文件失败")?;
-    let config: PluginConfig =
+    let config: Plugin =
         serde_json::from_slice(&config_bytes).context("反序列化 Plugin 配置失败")?;
 
     // 写入 WASM 文件

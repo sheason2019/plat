@@ -6,38 +6,38 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use connection::Connection;
 use handlers::{
     connect_handler, delete_plugin_handler, install_plugin_handler, list_plugin_handler,
-    regist_handler, sig_handler,
+    regist_handler, sig_handler, Connection,
 };
-use plugin::{models::PluginConfig, Options, PluginServer};
+use plugin::{models::Plugin, Options, PluginServer};
 use serde_json::{json, Value};
 use tokio::sync::{broadcast::Sender, Mutex};
 use tower_http::services::{ServeDir, ServeFile};
 use typings::{VerifyRequest, VerifyResponse};
 
-mod connection;
 mod handlers;
 mod typings;
 
-use crate::daemon::{PluginDaemon, SignBox};
+use crate::daemon::{Daemon, SignBox};
 
 pub struct DaemonServer {
-    pub plugin_daemon: PluginDaemon,
-    pub registed_plugins: Arc<Mutex<HashMap<String, PluginConfig>>>,
+    pub daemon: Daemon,
+    // 已连接的 Plugin
+    pub plugins: Arc<Mutex<HashMap<String, Plugin>>>,
+    // 本地启动的 Plugin 服务
+    plugin_servers: Arc<Mutex<HashMap<String, PluginServer>>>,
+    // Daemon 地址
     pub address: String,
+    // Daemon 文件夹路径
     root_path: PathBuf,
+    // 当前正活跃的用户连接
+    connections: Mutex<Vec<Arc<Connection>>>,
     terminate: Sender<()>,
-    connections: Mutex<HashMap<String, Arc<Connection>>>,
 }
 
 impl DaemonServer {
-    pub async fn new(
-        daemon: PluginDaemon,
-        root_path: PathBuf,
-        port: u16,
-    ) -> anyhow::Result<Arc<Self>> {
+    pub async fn new(daemon: Daemon, root_path: PathBuf, port: u16) -> anyhow::Result<Arc<Self>> {
         let assets_path = root_path.join("assets");
         let tcp_listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", port)).await?;
         let address = format!("http://{}", tcp_listener.local_addr()?.to_string());
@@ -45,12 +45,13 @@ impl DaemonServer {
         let (tx, _rx) = tokio::sync::broadcast::channel::<()>(4);
 
         let service = DaemonServer {
-            plugin_daemon: daemon,
-            registed_plugins: Arc::new(Mutex::new(HashMap::new())),
+            daemon,
+            plugins: Arc::new(Mutex::new(HashMap::new())),
+            plugin_servers: Arc::new(Mutex::new(HashMap::new())),
             address,
             root_path,
             terminate: tx,
-            connections: Mutex::new(HashMap::new()),
+            connections: Mutex::new(Vec::new()),
         };
         let service = Arc::new(service);
 
@@ -103,11 +104,24 @@ impl DaemonServer {
                 },
             )
             .await?;
+            self.plugin_servers
+                .lock()
+                .await
+                .insert(plugin_server.plugin().name.clone(), plugin_server);
         }
-        todo!()
+
+        Ok(())
     }
 
     pub async fn stop(&self) -> anyhow::Result<()> {
+        for connection in self.connections.lock().await.iter() {
+            connection.stop().await;
+        }
+
+        for plugin_server in self.plugin_servers.lock().await.values() {
+            plugin_server.stop().await;
+        }
+
         self.terminate.send(())?;
         Ok(())
     }
@@ -120,7 +134,7 @@ impl DaemonServer {
 
 async fn root_handler(State(service): State<Arc<DaemonServer>>) -> (StatusCode, Json<Value>) {
     let out = json!({
-        "public_key": &service.plugin_daemon.public_key,
+        "public_key": &service.daemon.public_key,
     });
     (StatusCode::OK, Json(out))
 }
