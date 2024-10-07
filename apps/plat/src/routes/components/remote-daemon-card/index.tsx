@@ -6,35 +6,35 @@ import {
   CardHeader,
   Divider,
 } from "@nextui-org/react";
-import { Daemon } from "../../../models/core";
-import DeleteDaemonButton from "./delete-daemon-button";
+import { RemoteDaemon } from "../../../models/core";
 import { Link } from "react-router-dom";
+import DeleteDaemonButton from "../local-daemon-card/delete-daemon-button";
 
 interface Props {
-  daemon: Daemon;
+  remoteDaemon: RemoteDaemon;
 }
 
-export default function LocalDaemonCard({ daemon }: Props) {
+export default function RemoteDaemonCard({ remoteDaemon }: Props) {
   return (
     <Card>
       <CardHeader>
         <p className="font-mono font-bold tracking-wide w-full overflow-hidden text-ellipsis whitespace-nowrap">
-          {daemon.public_key}
+          {remoteDaemon.address}
         </p>
       </CardHeader>
       <Divider />
       <CardBody>
         <div className="text-default-500 text-sm">
-          <p>Type: Local</p>
+          <p>Type: Remote</p>
         </div>
       </CardBody>
       <CardFooter>
-        <DeleteDaemonButton publicKey={daemon.public_key} />
+        <DeleteDaemonButton address={remoteDaemon.address} />
         <div className="flex-1" />
         <Button
           color="primary"
           as={Link}
-          to={`/daemons/local/${daemon.public_key}`}
+          to={`/daemons/remote/${encodeURIComponent(remoteDaemon.address)}`}
         >
           进入
         </Button>

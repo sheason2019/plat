@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use daemon::daemon::PluginDaemon;
 use tauri::Emitter;
 
-use crate::typings::HostState;
+use crate::typings::{HostState, RemoteDaemon};
 
 #[tauri::command]
 pub async fn append_daemon(
@@ -10,8 +10,9 @@ pub async fn append_daemon(
     app_handle: tauri::AppHandle,
     variant: &str,
     remote_address: &str,
+    remote_password: &str,
 ) -> Result<(), ()> {
-    match append_daemon_inner(state, app_handle, variant, remote_address).await {
+    match append_daemon_inner(state, app_handle, variant, remote_address, remote_password).await {
         Ok(val) => Ok(val),
         Err(e) => {
             println!("append command error: {}", e);
@@ -25,6 +26,7 @@ async fn append_daemon_inner(
     app_handle: tauri::AppHandle,
     variant: &str,
     remote_address: &str,
+    remote_password: &str,
 ) -> anyhow::Result<()> {
     match variant {
         "local-generate" => {
@@ -33,7 +35,15 @@ async fn append_daemon_inner(
             app_handle.emit("update-daemons", ())?;
         }
         "remote" => {
-            todo!();
+            let remote_daemon = RemoteDaemon {
+                address: remote_address.to_string(),
+                password: remote_password.to_string(),
+            };
+            state
+                .host_assets
+                .append_remote_daemon(remote_daemon)
+                .await?;
+            app_handle.emit("update-daemons", ())?;
         }
         _ => return Err(anyhow!("创建账号的模式超出预期")),
     }

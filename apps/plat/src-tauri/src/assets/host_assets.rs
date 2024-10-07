@@ -4,12 +4,18 @@ use daemon::daemon::PluginDaemon;
 use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex;
 
-use super::{local_daemon_asset::LocalDaemonAsset, template_asset::TemplateAsset};
+use crate::typings::RemoteDaemon;
+
+use super::{
+    local_daemon_asset::LocalDaemonAsset, remote_daemon_asset::RemoteDaemonAsset,
+    template_asset::TemplateAsset,
+};
 
 // 资产树
 pub struct HostAssets {
     pub path: PathBuf,
     pub local_daemons: Mutex<HashMap<String, LocalDaemonAsset>>,
+    pub remote_daemons: Mutex<HashMap<String, RemoteDaemonAsset>>,
     pub templates: Mutex<HashMap<String, TemplateAsset>>,
 }
 
@@ -19,6 +25,7 @@ impl HostAssets {
         let host_assets = HostAssets {
             path: host_assets_dir,
             local_daemons: Mutex::new(HashMap::new()),
+            remote_daemons: Mutex::new(HashMap::new()),
             templates: Mutex::new(HashMap::new()),
         };
 
@@ -47,20 +54,33 @@ impl HostAssets {
         if local_daemons_dir.exists() {
             for entry in local_daemons_dir.read_dir()? {
                 let templates_map = host_assets.templates.lock().await;
-                let daemon_asset = LocalDaemonAsset::new_from_path(entry?.path()).await?;
+                let local_daemon_asset = LocalDaemonAsset::new_from_path(entry?.path()).await?;
                 let template = templates_map
                     .get(
-                        &fs::read_to_string(daemon_asset.path.join("assets_sha3_256"))
+                        &fs::read_to_string(local_daemon_asset.path.join("assets_sha3_256"))
                             .unwrap_or("default".to_string()),
                     )
                     .unwrap_or(templates_map.get(&"default".to_string()).unwrap());
-                template.reconciliation(&daemon_asset).await?;
+                template.reconciliation(&local_daemon_asset).await?;
 
+                host_assets.local_daemons.lock().await.insert(
+                    local_daemon_asset.plugin_daemon.public_key.clone(),
+                    local_daemon_asset,
+                );
+            }
+        }
+
+        let remote_daemon_dir = host_assets.path.join("daemons").join("remote");
+        if remote_daemon_dir.exists() {
+            for entry in remote_daemon_dir.read_dir()? {
+                let remote_daemon_asset = RemoteDaemonAsset::new_from_path(entry?.path()).await?;
+
+                let daemon_key = urlencoding::encode(&remote_daemon_asset.remote_daemon.address);
                 host_assets
-                    .local_daemons
+                    .remote_daemons
                     .lock()
                     .await
-                    .insert(daemon_asset.plugin_daemon.public_key.clone(), daemon_asset);
+                    .insert(daemon_key.to_string(), remote_daemon_asset);
             }
         }
 
@@ -110,13 +130,56 @@ impl HostAssets {
         Ok(())
     }
 
-    pub async fn delete_local_daemon(&self, daemon_key: String) -> anyhow::Result<()> {
-        match self.local_daemons.lock().await.remove(&daemon_key) {
+    pub async fn delete_local_daemon(&self, public_key: String) -> anyhow::Result<()> {
+        match self.local_daemons.lock().await.remove(&public_key) {
             None => (),
             Some(asset) => {
                 asset.down().await?;
                 fs::remove_dir_all(asset.path)?;
             }
+        }
+
+        Ok(())
+    }
+
+    pub async fn append_remote_daemon(&self, remote_daemon: RemoteDaemon) -> anyhow::Result<()> {
+        let daemon_key = urlencoding::encode(&remote_daemon.address);
+        let daemon_dir = self
+            .path
+            .join("daemons")
+            .join("remote")
+            .join(daemon_key.as_ref());
+        if !daemon_dir.exists() {
+            fs::create_dir_all(&daemon_dir)?;
+        }
+
+        let daemon_file_path = daemon_dir.join("daemon.json");
+        fs::write(&daemon_file_path, serde_json::to_string(&remote_daemon)?)?;
+
+        let remote_daemon_asset = RemoteDaemonAsset::new_from_path(daemon_dir).await?;
+        let daemon_key = urlencoding::encode(&remote_daemon.address);
+        self.remote_daemons
+            .lock()
+            .await
+            .insert(daemon_key.to_string(), remote_daemon_asset);
+
+        Ok(())
+    }
+
+    pub async fn delete_remote_daemon(&self, address: String) -> anyhow::Result<()> {
+        let daemon_key = urlencoding::encode(&address);
+        self.remote_daemons
+            .lock()
+            .await
+            .remove(&daemon_key.to_string());
+
+        let daemon_dir = self
+            .path
+            .join("daemons")
+            .join("remote")
+            .join(daemon_key.as_ref());
+        if daemon_dir.exists() {
+            fs::remove_dir_all(&daemon_dir)?;
         }
 
         Ok(())

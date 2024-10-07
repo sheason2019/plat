@@ -19,7 +19,14 @@ async fn get_daemons_inner(state: HostState<'_>) -> anyhow::Result<String> {
         local_daemons.push(plugin_daemon);
     }
 
+    let mut remote_daemons: Vec<serde_json::Value> = Vec::new();
+    for daemon in state.host_assets.remote_daemons.lock().await.values() {
+        let remote_daemon = daemon.to_json_string().await?;
+        remote_daemons.push(remote_daemon);
+    }
+
     Ok(serde_json::to_string(&json!({
         "local_daemons": local_daemons,
+        "remote_daemons": remote_daemons,
     }))?)
 }

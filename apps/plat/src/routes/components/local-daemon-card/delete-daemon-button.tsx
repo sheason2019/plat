@@ -8,17 +8,17 @@ import {
   useDisclosure,
 } from "@nextui-org/react";
 import { invoke } from "@tauri-apps/api/core";
-import { Daemon } from "../../../models/core";
 
 interface Props {
-  daemon: Daemon;
+  publicKey?: string;
+  address?: string;
 }
 
-export default function DeleteDaemonButton({}: Props) {
+export default function DeleteDaemonButton({ publicKey, address }: Props) {
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   const handleDelete = async () => {
-    await invoke("remove_daemon", {});
+    await invoke("remove_daemon", { publicKey, address });
     onClose();
   };
 

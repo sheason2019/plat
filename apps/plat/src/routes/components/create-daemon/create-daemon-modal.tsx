@@ -81,10 +81,11 @@ export default function CreateDaemonModal({ isOpen, onClose }: Props) {
               <Input
                 label="远程服务密码"
                 value={form.remotePassword}
+                type="password"
                 onChange={(e) =>
                   setForm((prev) => ({
                     ...prev,
-                    removePassword: e.target.value,
+                    remotePassword: e.target.value,
                   }))
                 }
               />
