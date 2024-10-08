@@ -41,3 +41,4 @@ axum = { version = "0.7.5", features = ["ws"] }
 futures-util = "0.3.30"
 sha3 = "0.10.8"
 tauri-plugin-fs = "2.0.0-rc"
+hex = "0.4.3"

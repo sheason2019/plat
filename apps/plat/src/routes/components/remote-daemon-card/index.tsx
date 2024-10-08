@@ -7,14 +7,16 @@ import {
   Divider,
 } from "@nextui-org/react";
 import { RemoteDaemon } from "../../../models/core";
-import { Link } from "react-router-dom";
 import DeleteDaemonButton from "../local-daemon-card/delete-daemon-button";
+import useOpenDaemon from "../../hooks/use-open-daemon";
 
 interface Props {
   remoteDaemon: RemoteDaemon;
 }
 
 export default function RemoteDaemonCard({ remoteDaemon }: Props) {
+  const { openDaemon } = useOpenDaemon();
+
   return (
     <Card>
       <CardHeader>
@@ -31,11 +33,7 @@ export default function RemoteDaemonCard({ remoteDaemon }: Props) {
       <CardFooter>
         <DeleteDaemonButton address={remoteDaemon.address} />
         <div className="flex-1" />
-        <Button
-          color="primary"
-          as={Link}
-          to={`/daemons/remote/${encodeURIComponent(remoteDaemon.address)}`}
-        >
+        <Button color="primary" onClick={() => openDaemon(remoteDaemon)}>
           进入
         </Button>
       </CardFooter>

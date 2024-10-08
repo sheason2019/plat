@@ -8,11 +8,11 @@ import {
   ModalFooter,
   ModalHeader,
 } from "@nextui-org/react";
-import { useDaemonContext } from "../daemon-context/context";
 import { connectionState } from "../connection-provider/context";
 import { useRecoilValue } from "recoil";
 import PluginEntry from "./plugin-entry";
 import { Fragment } from "react/jsx-runtime";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 interface Props {
   isOpen: boolean;
@@ -20,12 +20,11 @@ interface Props {
 }
 
 export default function DaemonControlModal({ isOpen, onClose }: Props) {
-  const context = useDaemonContext();
   const connection = useRecoilValue(connectionState);
 
-  const handleExit = () => {
-    if (context?.fromOrigin)
-      window.parent.postMessage({ type: "exit" }, context?.fromOrigin);
+  const handleExit = async () => {
+    const webviewWindow = getCurrentWebviewWindow();
+    await webviewWindow.close();
   };
 
   return (
@@ -72,9 +71,9 @@ export default function DaemonControlModal({ isOpen, onClose }: Props) {
               </svg>
             }
             onClick={handleExit}
-            color="secondary"
+            color="danger"
           >
-            切换账号
+            退出账号
           </Button>
           <div className="flex-1" />
           <Button

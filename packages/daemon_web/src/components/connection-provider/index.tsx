@@ -1,17 +1,12 @@
 import { PropsWithChildren, useEffect, useRef, useState } from "react";
-import { sha3_256 } from "@noble/hashes/sha3";
-import { base64url } from "@scure/base";
 import ConnectionPending from "./pending";
 import { ConnectionStatus, IDaemon } from "./typings";
 import ConnectionClose from "./close";
-import { useDaemonContext } from "../daemon-context/context";
 import { useSetRecoilState } from "recoil";
 import { connectionState } from "./context";
 
 export default function ConnectionProvider({ children }: PropsWithChildren) {
   const wsRef = useRef<WebSocket | null>(null);
-
-  const context = useDaemonContext();
 
   const [status, setStatus] = useState(ConnectionStatus.Pending);
   const [closeReason, setCloseReason] = useState("");
@@ -25,18 +20,6 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
     const ws = new WebSocket(
       `${location.origin.replace("http", "ws")}/api/connect`
     );
-
-    const handleReceiveSalt = async (salt: string) => {
-      const passwordBuf = new TextEncoder().encode(context?.password);
-      const saltBuf = new TextEncoder().encode(salt);
-      const passwordHash = sha3_256
-        .create()
-        .update(passwordBuf)
-        .update(saltBuf)
-        .digest();
-
-      ws.send(base64url.encode(passwordHash));
-    };
 
     const handleReceiveResult = async (result: string) => {
       if (result === "OK") {
@@ -64,9 +47,6 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
     const messageListener = async (e: MessageEvent) => {
       switch (sequence) {
         case 0:
-          await handleReceiveSalt(e.data);
-          break;
-        case 1:
           await handleReceiveResult(e.data);
           break;
         default:
@@ -93,7 +73,7 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
       ws.close();
       wsRef.current = null;
     };
-  }, [context?.password, setConnection]);
+  }, [setConnection]);
 
   if (status === ConnectionStatus.Pending) {
     return <ConnectionPending />;

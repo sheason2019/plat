@@ -3484,6 +3484,7 @@ dependencies = [
  "bundler",
  "daemon",
  "futures-util",
+ "hex",
  "plugin",
  "reqwest",
  "serde",

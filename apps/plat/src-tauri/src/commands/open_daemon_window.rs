@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use base64::Engine;
 use sha3::Digest;
-use tauri::Url;
+use tauri::{ipc::CapabilityBuilder, Listener, Manager, Url};
 
 #[tauri::command]
 pub async fn open_daemon_window(app_handle: tauri::AppHandle, address: &str) -> Result<(), ()> {
@@ -25,15 +25,16 @@ async fn open_daemon_window_inner(
         let mut hasher = sha3::Sha3_256::new();
         hasher.update(address);
         let output = hasher.finalize();
-        base64::prelude::BASE64_URL_SAFE_NO_PAD.encode(output)
+        hex::encode(&output[0..16])
     };
 
     let builder = tauri::WebviewWindowBuilder::new(
         &app_handle,
-        label,
+        format!("daemon-{}", label),
         tauri::WebviewUrl::External(daemon_url),
     );
-    let _ = builder.build()?;
+
+    let window = builder.build()?;
 
     Ok(())
 }

@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/android-schema.json",
+  "identifier": "daemon",
+  "description": "Capability for the daemon window",
+  "windows": ["daemon-*"],
+  "remote": {
+    "urls": ["http://127.0.0.1:5173"]
+  },
+  "permissions": ["core:window:allow-close"]
+}
