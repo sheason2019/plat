@@ -10,5 +10,5 @@ export default function RemoteDaemonPage() {
     (item) => item.address === addressString
   )!;
 
-  return <DaemonFrame address={daemon.address} password={daemon.password} />;
+  return <DaemonFrame address={daemon.address} />;
 }

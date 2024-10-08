@@ -12,7 +12,6 @@ import { connectionState } from "../connection-provider/context";
 import { useRecoilValue } from "recoil";
 import PluginEntry from "./plugin-entry";
 import { Fragment } from "react/jsx-runtime";
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 interface Props {
   isOpen: boolean;
@@ -23,8 +22,7 @@ export default function DaemonControlModal({ isOpen, onClose }: Props) {
   const connection = useRecoilValue(connectionState);
 
   const handleExit = async () => {
-    const webviewWindow = getCurrentWebviewWindow();
-    await webviewWindow.close();
+    window.parent.postMessage({ type: "exit" }, "*");
   };
 
   return (

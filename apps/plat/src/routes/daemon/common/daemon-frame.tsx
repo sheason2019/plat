@@ -3,48 +3,31 @@ import { useNavigate } from "react-router-dom";
 
 interface Props {
   address: string;
-  password: string;
 }
 
-export default function DaemonFrame({ address, password }: Props) {
+export default function DaemonFrame({ address }: Props) {
   const navigate = useNavigate();
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const intervalRef = useRef<number>();
-
   useEffect(() => {
-    const postMessageHandler = (e: MessageEvent) => {
-      if (e.data?.type === "exit") {
-        return navigate("/");
-      }
-      if (e.data?.type === "context-received") {
+    const el = iframeRef.current;
+    if (!el) return;
+
+    const handler = (e: MessageEvent) => {
+      try {
+        switch (e.data.type) {
+          case "exit":
+            navigate("/");
+            break;
+          default:
+            break;
+        }
+      } catch (err) {
+        console.error("handle message error:", err);
       }
     };
-    window.addEventListener("message", postMessageHandler);
-    return () => window.removeEventListener("message", postMessageHandler);
-  }, []);
-
-  useEffect(() => {
-    let i = 0;
-    intervalRef.current = setInterval(() => {
-      if (i > 5) {
-        return clearInterval(intervalRef.current);
-      }
-
-      iframeRef.current?.contentWindow?.postMessage(
-        JSON.stringify({
-          type: "context",
-          payload: {
-            fromOrigin: location.origin,
-            password: password,
-          },
-        }),
-        new URL(address).origin
-      );
-      i++;
-    }, 100);
-
-    return () => clearInterval(intervalRef.current);
-  }, [address, password]);
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [iframeRef]);
 
   return <iframe ref={iframeRef} src={address} className="w-full h-full" />;
 }

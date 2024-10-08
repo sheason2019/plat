@@ -9,5 +9,5 @@ export default function LocalDaemonPage() {
     (item) => item.public_key === publicKey
   )!;
 
-  return <DaemonFrame address={daemon.address} password={daemon.password} />;
+  return <DaemonFrame address={daemon.address} />;
 }
