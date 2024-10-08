@@ -9,7 +9,6 @@ use axum::{
 };
 use futures::TryStreamExt;
 use plugin::models::Plugin;
-use reqwest::StatusCode;
 use serde_json::{json, Value};
 use tokio::{
     fs::File,
@@ -19,36 +18,29 @@ use tokio_util::io::StreamReader;
 
 use crate::service::DaemonServer;
 
-pub async fn list_plugin_handler(
-    State(service): State<Arc<DaemonServer>>,
-) -> (StatusCode, Json<Value>) {
+pub async fn list_plugin_handler(State(service): State<Arc<DaemonServer>>) -> Json<Value> {
     let registed_plugins = service.plugins.lock().await;
     let plugins: Vec<&Plugin> = registed_plugins.values().collect();
     let plugins = json!({
         "plugins": &plugins,
     });
 
-    (StatusCode::OK, Json(plugins))
+    Json(plugins)
 }
 
 pub async fn install_plugin_handler(
     State(service): State<Arc<DaemonServer>>,
     mut multipart: Multipart,
-) -> Result<Json<Value>, (StatusCode, String)> {
+) -> Result<Json<Value>, String> {
     // 获取上传的文件
     let field = match multipart.next_field().await {
         Ok(Some(val)) => val,
-        _ => return Err((StatusCode::BAD_REQUEST, String::from("无法找到Plugin文件"))),
+        _ => return Err(String::from("无法找到Plugin文件")),
     };
 
     let file_name = match field.file_name() {
         Some(name) => name,
-        None => {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                String::from("无法找到Plugin文件名称"),
-            ))
-        }
+        None => return Err(String::from("无法找到Plugin文件名称")),
     };
 
     // 将用户上传的插件复制至 cache 文件夹，并解压到对应目录

@@ -8,14 +8,11 @@ serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 anyhow.workspace = true
 tokio.workspace = true
-reqwest.workspace = true
 plugin.path = "../plugin"
 base64 = "0.22.1"
 axum = { version = "0.7.5", features = ["multipart", "ws"] }
 url = "2.5.2"
 futures = "0.3.30"
-tokio-stream = "0.1.16"
-async-stream = "0.3.5"
 tower-http = { version = "0.5.2", features = ["fs"] }
 ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
 rand = "0.8.5"
