@@ -1,5 +1,6 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
+use anyhow::Context;
 use axum::extract::ws::{Message, WebSocket};
 use plugin::models::Plugin;
 use serde_json::json;
@@ -20,7 +21,11 @@ impl Connection {
         }
     }
 
-    pub async fn handle(&self, websocket: &mut WebSocket) -> anyhow::Result<()> {
+    pub async fn handle(
+        &self,
+        websocket: &mut WebSocket,
+        server: &DaemonServer,
+    ) -> anyhow::Result<()> {
         let mut terminate_sub = self.terminate.subscribe();
         let mut sender_sub = self.sender_channel.subscribe();
 
@@ -39,6 +44,8 @@ impl Connection {
                 }
             }
         });
+
+        self.send_daemon(server).await?;
 
         loop {
             tokio::select! {
@@ -63,15 +70,19 @@ impl Connection {
         Ok(())
     }
 
-    pub async fn send_daemon(&self, service: &DaemonServer) -> anyhow::Result<()> {
+    pub async fn send_daemon(&self, server: &DaemonServer) -> anyhow::Result<()> {
         self.sender_channel
-            .send(Message::Text(serde_json::to_string(&json!({
-                "type": "daemon",
-                "payload": {
-                    "public_key": service.daemon.public_key,
-                    "plugins": service.plugins.lock().await.values().collect::<Vec<&Plugin>>(),
-                },
-            }))?))?;
+            .send(Message::Text(
+                serde_json::to_string(&json!({
+                    "type": "daemon",
+                    "payload": {
+                        "public_key": server.daemon.public_key,
+                        "plugins": server.plugins.lock().await.values().collect::<Vec<&Plugin>>(),
+                    },
+                }))
+                .context("serilize daemon json failed")?,
+            ))
+            .context("send message by channel failed")?;
 
         Ok(())
     }

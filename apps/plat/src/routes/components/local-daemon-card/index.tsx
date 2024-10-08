@@ -26,6 +26,7 @@ export default function LocalDaemonCard({ daemon }: Props) {
       <CardBody>
         <div className="text-default-500 text-sm">
           <p>Type: Local</p>
+          <p>Address: {daemon.address}</p>
         </div>
       </CardBody>
       <CardFooter>

@@ -39,24 +39,6 @@ pub async fn regist_handler(
             return;
         }
 
-        socket
-            .send(Message::Text(service.daemon.public_key.clone()))
-            .await
-            .unwrap();
-        match socket.recv().await.unwrap().unwrap() {
-            Message::Text(public_key) => public_key,
-            _ => {
-                socket
-                    .send(Message::Close(Some(CloseFrame {
-                        code: 1000,
-                        reason: Cow::from("消息类型错误"),
-                    })))
-                    .await
-                    .unwrap();
-                return;
-            }
-        };
-
         service
             .plugins
             .lock()

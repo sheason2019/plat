@@ -20,6 +20,7 @@ interface Props {
 
 export default function DaemonControlModal({ isOpen, onClose }: Props) {
   const connection = useRecoilValue(connectionState);
+  console.log('connection', connection);
 
   const handleExit = async () => {
     window.parent.postMessage({ type: "exit" }, "*");

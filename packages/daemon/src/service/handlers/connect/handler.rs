@@ -1,5 +1,6 @@
 use std::{borrow::Cow, ops::Deref, ptr, sync::Arc};
 
+use anyhow::Context;
 use axum::{
     extract::{
         ws::{CloseFrame, Message, WebSocket},
@@ -7,6 +8,7 @@ use axum::{
     },
     response::IntoResponse,
 };
+use serde_json::json;
 
 use crate::service::DaemonServer;
 
@@ -36,11 +38,19 @@ async fn handle_connection(
     server: Arc<DaemonServer>,
 ) -> anyhow::Result<()> {
     // 创建 Connection
-    socket.send(Message::Text("OK".to_string())).await.unwrap();
+    socket
+        .send(Message::Text(serde_json::to_string(
+            &json!({"type": "ok"}),
+        )?))
+        .await?;
 
     let connection = Arc::new(Connection::new());
     server.connections.lock().await.push(connection.clone());
-    connection.handle(socket).await?;
+
+    connection
+        .handle(socket, &server)
+        .await
+        .context("handle connection failed")?;
 
     let deref = connection.deref();
     let position = server

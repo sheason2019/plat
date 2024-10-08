@@ -15,17 +15,10 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     setStatus(ConnectionStatus.Pending);
-    let sequence = 0;
 
     const ws = new WebSocket(
       `${location.origin.replace("http", "ws")}/api/connect`
     );
-
-    const handleReceiveResult = async (result: string) => {
-      if (result === "OK") {
-        return setStatus(ConnectionStatus.Open);
-      }
-    };
 
     const handleMessage = async (message: string) => {
       const data: {
@@ -33,6 +26,9 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
         payload: object;
       } = JSON.parse(message);
       switch (data.type) {
+        case "ok":
+          setStatus(ConnectionStatus.Open);
+          break;
         case "daemon":
           setConnection((prev) => ({
             ...prev,
@@ -45,16 +41,7 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
     };
 
     const messageListener = async (e: MessageEvent) => {
-      switch (sequence) {
-        case 0:
-          await handleReceiveResult(e.data);
-          break;
-        default:
-          await handleMessage(e.data);
-          break;
-      }
-
-      sequence++;
+      handleMessage(e.data);
     };
     ws.addEventListener("message", messageListener);
 
