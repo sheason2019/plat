@@ -10,15 +10,12 @@ export interface IDaemon {
 }
 
 export interface IPlugin {
-  address: string;
-  assets_root: string;
-  entries: IPluginEntry[];
   name: string;
-  storage_root: string;
-  version: string;
   wasm_root: string;
-  daemon_address?: string;
-  regist_address?: string;
+  assets_root: string;
+  storage_root: string;
+  entries: IPluginEntry[];
+  address?: string;
 }
 
 export interface IPluginEntry {
@@ -29,5 +26,6 @@ export interface IPluginEntry {
 }
 
 export interface IConnectionContext {
-  daemon: IDaemon;
+  ws?: WebSocket;
+  daemon?: IDaemon;
 }

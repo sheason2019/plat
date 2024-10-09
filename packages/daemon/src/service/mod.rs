@@ -99,7 +99,7 @@ impl DaemonServer {
                 entry.path(),
                 Options {
                     port: 0,
-                    daemon_address: String::new(),
+                    daemon_address: self.address.clone(),
                     regist_address: None,
                 },
             )

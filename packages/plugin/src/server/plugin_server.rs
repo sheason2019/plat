@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use crate::models::Plugin;
 use crate::server::wasi::PlatServer;
+use anyhow::Context;
 use http_body_util::{BodyExt, Full};
 use hyper::server::conn::http1;
 use hyper::{Method, Response};
@@ -25,16 +26,23 @@ impl PluginServer {
     pub async fn new(plugin_dir: PathBuf, options: Options) -> anyhow::Result<Self> {
         let daemon_address = options.daemon_address;
 
-        let tcp_listener = TcpListener::bind(format!("127.0.0.1:{}", options.port)).await?;
+        let tcp_listener = TcpListener::bind(format!("127.0.0.1:{}", options.port))
+            .await
+            .context("监听端口失败")?;
 
-        let mut plat_server = PlatServer::new(plugin_dir, daemon_address.clone())?;
+        let mut plat_server =
+            PlatServer::new(plugin_dir.join("plugin.json"), daemon_address.clone())
+                .context("创建 PlatServer 失败")?;
         let server_address = format!("http://{}", tcp_listener.local_addr()?);
         let regist_address = match options.regist_address.as_ref() {
             Some(address) => address.clone(),
             None => server_address.clone(),
         };
 
-        let terminate = plat_server.create_regist_plugin_handle().await?;
+        let terminate = plat_server
+            .create_regist_plugin_handle()
+            .await
+            .context("注册 Plugin 失败")?;
 
         let plat_server = Arc::new(plat_server);
 

@@ -47,10 +47,13 @@ async fn handle_connection(
     let connection = Arc::new(Connection::new());
     server.connections.lock().await.push(connection.clone());
 
-    connection
-        .handle(socket, &server)
-        .await
-        .context("handle connection failed")?;
+    match connection.handle(socket, &server).await {
+        Ok(_) => (),
+        Err(e) => {
+            println!("Connection 已断开，原因：{:?}", e);
+        }
+    }
+    connection.stop().await;
 
     let deref = connection.deref();
     let position = server

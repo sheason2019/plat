@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use anyhow::Context;
 use axum::extract::ws::{Message, WebSocket};
@@ -11,6 +11,7 @@ use crate::service::DaemonServer;
 pub struct Connection {
     terminate: Sender<()>,
     sender_channel: Sender<Message>,
+    pub receive_channel: Sender<Message>,
 }
 
 impl Connection {
@@ -18,6 +19,7 @@ impl Connection {
         Connection {
             terminate: Sender::new(4),
             sender_channel: Sender::new(4),
+            receive_channel: Sender::new(4),
         }
     }
 
@@ -25,7 +27,7 @@ impl Connection {
         &self,
         websocket: &mut WebSocket,
         server: &DaemonServer,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<&str> {
         let mut terminate_sub = self.terminate.subscribe();
         let mut sender_sub = self.sender_channel.subscribe();
 
@@ -51,23 +53,22 @@ impl Connection {
             tokio::select! {
                 recv = websocket.recv() => {
                     let message = match recv {
-                        None => break,
+                        None => anyhow::bail!("接收到空消息"),
                         Some(value) => value?,
                     };
                     match message {
-                        Message::Close(_) => break,
+                        Message::Close(_) => anyhow::bail!("接收到关闭请求"),
                         _ => ()
                     };
+                    let _ = self.receive_channel.send(message);
                 },
-                _ = time::sleep(Duration::from_secs(12)) => break,
-                _ = terminate_sub.recv() => break,
+                _ = time::sleep(Duration::from_secs(12)) => anyhow::bail!("连接超时"),
+                _ = terminate_sub.recv() => anyhow::bail!("连接从内部关闭"),
                 message = sender_sub.recv() => {
-                    websocket.send(message?).await?;
+                    websocket.send(message?).await.context("发送消息失败")?;
                 },
             }
         }
-
-        Ok(())
     }
 
     pub async fn send_daemon(&self, server: &DaemonServer) -> anyhow::Result<()> {
@@ -84,6 +85,11 @@ impl Connection {
             ))
             .context("send message by channel failed")?;
 
+        Ok(())
+    }
+
+    pub fn send_message(&self, message: &Message) -> anyhow::Result<()> {
+        self.sender_channel.send(message.clone())?;
         Ok(())
     }
 

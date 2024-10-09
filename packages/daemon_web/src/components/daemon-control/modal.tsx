@@ -20,7 +20,6 @@ interface Props {
 
 export default function DaemonControlModal({ isOpen, onClose }: Props) {
   const connection = useRecoilValue(connectionState);
-  console.log('connection', connection);
 
   const handleExit = async () => {
     window.parent.postMessage({ type: "exit" }, "*");
@@ -33,14 +32,14 @@ export default function DaemonControlModal({ isOpen, onClose }: Props) {
           <div className="overflow-hidden">
             <p>菜单</p>
             <div className="text-sm text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis">
-              <p>账号公钥：{connection?.daemon.public_key}</p>
+              <p>账号公钥：{connection.daemon?.public_key}</p>
               <p>网络地址：{location.origin}</p>
             </div>
           </div>
         </ModalHeader>
         <ModalBody>
           <div className="grid grid-cols-3 mb-4">
-            {connection?.daemon.plugins.map((plugin) => (
+            {connection.daemon?.plugins.map((plugin) => (
               <Fragment key={plugin.name}>
                 {plugin.entries.map((entry) => (
                   <PluginEntry

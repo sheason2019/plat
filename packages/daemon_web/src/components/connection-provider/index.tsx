@@ -1,15 +1,15 @@
-import { PropsWithChildren, useEffect, useRef, useState } from "react";
+import { PropsWithChildren, useEffect, useState } from "react";
 import ConnectionPending from "./pending";
 import { ConnectionStatus, IDaemon } from "./typings";
 import ConnectionClose from "./close";
 import { useSetRecoilState } from "recoil";
 import { connectionState } from "./context";
+import useConfirmModal from "../confirm-modal/hooks/use-confirm-modal";
 
 export default function ConnectionProvider({ children }: PropsWithChildren) {
-  const wsRef = useRef<WebSocket | null>(null);
-
   const [status, setStatus] = useState(ConnectionStatus.Pending);
   const [closeReason, setCloseReason] = useState("");
+  const { confirmInstallPlugin } = useConfirmModal();
 
   const setConnection = useSetRecoilState(connectionState);
 
@@ -23,8 +23,10 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
     const handleMessage = async (message: string) => {
       const data: {
         type: string;
-        payload: object;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        payload: any;
       } = JSON.parse(message);
+      console.info("receive message", data);
       switch (data.type) {
         case "ok":
           setStatus(ConnectionStatus.Open);
@@ -34,6 +36,9 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
             ...prev,
             daemon: data.payload as IDaemon,
           }));
+          break;
+        case "confirm/install-plugin":
+          confirmInstallPlugin(data.payload.name, data.payload.plugin);
           break;
         default:
           break;
@@ -52,15 +57,15 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
     };
     ws.addEventListener("close", closeListener);
 
-    wsRef.current = ws;
+    setConnection((prev) => ({ ...prev, ws }));
 
     return () => {
       ws.removeEventListener("message", messageListener);
       ws.removeEventListener("close", closeListener);
       ws.close();
-      wsRef.current = null;
+      setConnection((prev) => ({ ...prev, ws: undefined }));
     };
-  }, [setConnection]);
+  }, [confirmInstallPlugin, setConnection]);
 
   if (status === ConnectionStatus.Pending) {
     return <ConnectionPending />;
