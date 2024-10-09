@@ -84,6 +84,8 @@ impl DaemonServer {
             }
         });
 
+        service.start_local_plugin().await?;
+
         Ok(service)
     }
 
