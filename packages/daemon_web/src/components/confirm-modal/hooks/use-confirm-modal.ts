@@ -22,11 +22,11 @@ export default function useConfirmModal() {
     [setState]
   );
 
-  const confirmRemovePlugin = useCallback(
-    (name: string) => {
+  const confirmDeletePlugin = useCallback(
+    (plugin: IPlugin) => {
       setState({
-        variant: ConfirmModalVariant.RemovePlugin,
-        name,
+        variant: ConfirmModalVariant.DeletePlugin,
+        plugin,
       });
     },
     [setState]
@@ -34,5 +34,5 @@ export default function useConfirmModal() {
 
   const closeModal = () => setState(null);
 
-  return { confirmInstallPlugin, confirmRemovePlugin, state, closeModal };
+  return { confirmInstallPlugin, confirmDeletePlugin, state, closeModal };
 }

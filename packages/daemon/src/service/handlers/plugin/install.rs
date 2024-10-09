@@ -74,7 +74,7 @@ async fn try_install_plugin(
     // 获取 Connection，请求用户确认
     let message = Message::Text(serde_json::to_string(&connection_message)?);
     for connection in server.connections.lock().await.iter() {
-        connection.send_message(&message)?;
+        connection.send_message(message.clone())?;
     }
     let allow_chan: Sender<bool> = Sender::new(4);
     let mut allow_result = allow_chan.subscribe();

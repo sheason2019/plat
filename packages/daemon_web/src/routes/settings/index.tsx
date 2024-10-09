@@ -13,7 +13,7 @@ export default function SettingsPage() {
       </h1>
       <InstallPluginButton />
       <div className="grid grid-cols-1 gap-4 mt-4">
-        {connection?.daemon.plugins.map((plugin) => (
+        {connection.daemon?.plugins.map((plugin) => (
           <PluginCard key={plugin.name} plugin={plugin} />
         ))}
       </div>

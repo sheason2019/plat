@@ -2,13 +2,13 @@ import { IPlugin } from "../connection-provider/typings";
 
 export enum ConfirmModalVariant {
   InstallPlugin,
-  RemovePlugin,
+  DeletePlugin,
 }
 
 export type ConfirmModalState =
   | null
   | IConfirmInstallPluginState
-  | IConfirmRemovePluginState;
+  | IConfirmDeletePluginState;
 
 export interface IConfirmInstallPluginState {
   variant: ConfirmModalVariant.InstallPlugin;
@@ -16,7 +16,7 @@ export interface IConfirmInstallPluginState {
   plugin: IPlugin;
 }
 
-export interface IConfirmRemovePluginState {
-  variant: ConfirmModalVariant.RemovePlugin;
-  name: string;
+export interface IConfirmDeletePluginState {
+  variant: ConfirmModalVariant.DeletePlugin;
+  plugin: IPlugin;
 }

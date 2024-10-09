@@ -18,6 +18,7 @@ use super::Options;
 pub struct PluginServer {
     terminate: Sender<()>,
     plat_server: Arc<PlatServer>,
+    pub path: PathBuf,
     pub server_address: String,
     pub regist_address: String,
 }
@@ -38,7 +39,10 @@ impl PluginServer {
             Some(address) => address.clone(),
             None => server_address.clone(),
         };
-        plat_server.plugin_config.address.replace(regist_address.clone());
+        plat_server
+            .plugin_config
+            .address
+            .replace(regist_address.clone());
 
         let terminate = plat_server
             .create_regist_plugin_handle()
@@ -110,6 +114,7 @@ impl PluginServer {
         });
 
         Ok(PluginServer {
+            path: plugin_dir,
             plat_server,
             server_address,
             regist_address,

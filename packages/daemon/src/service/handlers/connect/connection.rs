@@ -88,8 +88,8 @@ impl Connection {
         Ok(())
     }
 
-    pub fn send_message(&self, message: &Message) -> anyhow::Result<()> {
-        self.sender_channel.send(message.clone())?;
+    pub fn send_message(&self, message: Message) -> anyhow::Result<()> {
+        self.sender_channel.send(message)?;
         Ok(())
     }
 

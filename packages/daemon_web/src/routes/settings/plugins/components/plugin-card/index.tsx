@@ -1,29 +1,24 @@
-import {
-  Button,
-  Card,
-  CardBody,
-  CardFooter,
-  CardHeader,
-} from "@nextui-org/react";
+import { Button, Card, CardBody, CardFooter } from "@nextui-org/react";
 import { IPlugin } from "../../../../../components/connection-provider/typings";
+import axios from "axios";
 
 interface Props {
   plugin: IPlugin;
 }
 
 export default function PluginCard({ plugin }: Props) {
+  const handleDelete = () =>
+    axios.delete("/api/plugin", { params: { name: plugin.name } });
+
   return (
     <Card>
-      <CardHeader>
-        <p>{plugin.name}</p>
-        <p>{plugin.version}</p>
-      </CardHeader>
       <CardBody>
-        <p>Plugin Address: {plugin.address}</p>
-        <p>Entry Count: {plugin.entries.length}</p>
+        <pre>{JSON.stringify(plugin, null, "  ")}</pre>
       </CardBody>
       <CardFooter>
-        <Button>卸载</Button>
+        <Button color="danger" onClick={handleDelete}>
+          删除
+        </Button>
       </CardFooter>
     </Card>
   );

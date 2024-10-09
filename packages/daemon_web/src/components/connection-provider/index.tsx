@@ -9,7 +9,7 @@ import useConfirmModal from "../confirm-modal/hooks/use-confirm-modal";
 export default function ConnectionProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState(ConnectionStatus.Pending);
   const [closeReason, setCloseReason] = useState("");
-  const { confirmInstallPlugin } = useConfirmModal();
+  const { confirmInstallPlugin, confirmDeletePlugin } = useConfirmModal();
 
   const setConnection = useSetRecoilState(connectionState);
 
@@ -40,6 +40,9 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
         case "confirm/install-plugin":
           confirmInstallPlugin(data.payload.name, data.payload.plugin);
           break;
+        case "confirm/delete-plugin":
+          confirmDeletePlugin(data.payload.plugin);
+          break;
         default:
           break;
       }
@@ -65,7 +68,7 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
       ws.close();
       setConnection((prev) => ({ ...prev, ws: undefined }));
     };
-  }, [confirmInstallPlugin, setConnection]);
+  }, [confirmInstallPlugin, confirmDeletePlugin, setConnection]);
 
   if (status === ConnectionStatus.Pending) {
     return <ConnectionPending />;

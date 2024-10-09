@@ -11,8 +11,7 @@ export default function InstallPluginButton() {
 
     const formData = new FormData();
     formData.set("plugin", file);
-    const resp = await axios.post("/api/plugin", formData);
-    console.log("response", resp);
+    await axios.post("/api/plugin", formData);
   };
 
   return (
