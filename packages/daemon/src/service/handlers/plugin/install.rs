@@ -120,6 +120,7 @@ async fn try_install_plugin(
 
     // 根据返回的结果安装或取消安装插件
     if !allow_result.recv().await? {
+        fs::remove_dir_all(&cache_dir)?;
         return Ok(Json(json!({"complete": false})));
     }
 
@@ -139,6 +140,7 @@ async fn try_install_plugin(
         fs::remove_dir_all(&plugin_dir)?;
     }
     fs::rename(&out_dir, &plugin_dir).context("移动插件至插件目录失败")?;
+    fs::remove_dir_all(&cache_dir)?;
 
     // 启动插件
     let plugin_server = PluginServer::new(
