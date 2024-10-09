@@ -1,6 +1,5 @@
-import { Button } from "@nextui-org/react";
+import { Button, Link } from "@nextui-org/react";
 import { IPlugin, IPluginEntry } from "../connection-provider/typings";
-import { Link } from "react-router-dom";
 
 interface Props {
   plugin: IPlugin;
@@ -13,7 +12,7 @@ export default function PluginEntry({ plugin, entry, onClose }: Props) {
     <Button
       startContent={<img src={plugin.address + entry.icon} />}
       as={Link}
-      to={`/plugin/${encodeURIComponent(plugin.name)}/${encodeURIComponent(
+      href={`/plugin/${encodeURIComponent(plugin.name)}/${encodeURIComponent(
         entry.label
       )}`}
       onClick={onClose}

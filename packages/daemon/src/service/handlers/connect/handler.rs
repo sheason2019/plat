@@ -1,6 +1,5 @@
 use std::{borrow::Cow, ops::Deref, ptr, sync::Arc};
 
-use anyhow::Context;
 use axum::{
     extract::{
         ws::{CloseFrame, Message, WebSocket},

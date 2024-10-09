@@ -38,6 +38,7 @@ impl PluginServer {
             Some(address) => address.clone(),
             None => server_address.clone(),
         };
+        plat_server.plugin_config.address.replace(regist_address.clone());
 
         let terminate = plat_server
             .create_regist_plugin_handle()

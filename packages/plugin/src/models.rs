@@ -7,6 +7,7 @@ pub struct Plugin {
     pub assets_root: String,
     pub storage_root: String,
     pub entries: Vec<PluginEntry>,
+    pub address: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
