@@ -17,7 +17,7 @@ pub async fn regist_handler(
 ) -> impl IntoResponse {
     ws.on_upgrade(|mut socket| async move {
         socket
-            .send(Message::Text("Ready".to_string()))
+            .send(Message::Text(service.daemon.public_key.clone()))
             .await
             .unwrap();
 

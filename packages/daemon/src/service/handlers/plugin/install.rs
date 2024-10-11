@@ -144,7 +144,7 @@ async fn try_install_plugin(
 
     // 启动插件
     let plugin_server = PluginServer::new(
-        plugin_dir,
+        plugin_dir.join("plugin.json"),
         Options {
             port: 0,
             daemon_address: server.address.clone(),

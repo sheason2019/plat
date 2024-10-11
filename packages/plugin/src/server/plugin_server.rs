@@ -24,7 +24,8 @@ pub struct PluginServer {
 }
 
 impl PluginServer {
-    pub async fn new(plugin_dir: PathBuf, options: Options) -> anyhow::Result<Self> {
+    pub async fn new(plugin_path: PathBuf, options: Options) -> anyhow::Result<Self> {
+        let plugin_dir = plugin_path.parent().unwrap().to_path_buf();
         let daemon_address = options.daemon_address;
 
         let tcp_listener = TcpListener::bind(format!("127.0.0.1:{}", options.port))

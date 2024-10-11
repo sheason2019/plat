@@ -8,13 +8,13 @@ export default function PluginPage() {
   const { pluginName, entryLabel } = useParams();
 
   const address = useMemo(() => {
-    const plugin = connection?.daemon.plugins.find(
+    const plugin = connection.daemon?.plugins.find(
       (item) => item.name === pluginName
     );
     const entry = plugin?.entries.find((item) => item.label === entryLabel);
 
     return `${plugin?.address}${entry?.href}`;
-  }, [connection?.daemon.plugins, entryLabel, pluginName]);
+  }, [connection.daemon?.plugins, entryLabel, pluginName]);
 
   return <iframe className="h-full w-full" src={address} />;
 }

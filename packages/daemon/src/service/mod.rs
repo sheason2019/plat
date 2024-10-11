@@ -98,7 +98,7 @@ impl DaemonServer {
         for entry in fs::read_dir(&plugins_dir)? {
             let entry = entry?;
             let plugin_server = PluginServer::new(
-                entry.path(),
+                entry.path().join("plugin.json"),
                 Options {
                     port: 0,
                     daemon_address: self.address.clone(),

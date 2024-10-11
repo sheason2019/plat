@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::broadcast::Sender;
 use tokio_tungstenite::tungstenite::Message;
@@ -34,33 +34,44 @@ impl PlatServer {
         }
 
         let plugin_config_directory = plugin_config_path.parent().unwrap().to_path_buf();
-        let plugin_config_bytes = fs::read(plugin_config_path)?;
-        let plugin_config: Plugin = serde_json::from_slice(&plugin_config_bytes)?;
+        let plugin_config_bytes = fs::read(plugin_config_path).context("读取 plugin.json 失败")?;
+        let plugin_config: Plugin =
+            serde_json::from_slice(&plugin_config_bytes).context("序列化 plugin.json 失败")?;
 
         let mut config = Config::new();
         config.async_support(true);
-        let engine = Engine::new(&config)?;
+        let engine = Engine::new(&config).context("创建 WASI Engine 失败")?;
 
         let component = Component::from_file(
             &engine,
             plugin_config_directory.join(plugin_config.wasm_root.clone()),
-        )?;
+        )
+        .context("初始化 WASI Component 失败")?;
 
         let mut linker = Linker::new(&engine);
-        wasmtime_wasi::add_to_linker_async(&mut linker)?;
-        wasmtime_wasi_http::add_only_http_to_linker_async(&mut linker)?;
+        wasmtime_wasi::add_to_linker_async(&mut linker).context("添加 Wasmtime WASI 链接失败")?;
+        wasmtime_wasi_http::add_only_http_to_linker_async(&mut linker)
+            .context("添加 Wasmtime WASI HTTP 链接失败")?;
         plat_bindings::lock::add_to_linker(&mut linker, |state: &mut plat_bindings::Component| {
             state
-        })?;
+        })
+        .context("添加 Plat Lock 链接失败")?;
         plat_bindings::task::add_to_linker(&mut linker, |state: &mut plat_bindings::Component| {
             state
-        })?;
+        })
+        .context("添加 Plat Task 链接失败")?;
         plat_bindings::channel::add_to_linker(
             &mut linker,
             |state: &mut plat_bindings::Component| state,
-        )?;
+        )
+        .context("添加 Plat Channel 链接失败")?;
 
-        let pre = plat_bindings::PlatWorldPre::new(linker.instantiate_pre(&component)?)?;
+        let pre = plat_bindings::PlatWorldPre::new(
+            linker
+                .instantiate_pre(&component)
+                .context("构建 instance_pre 失败")?,
+        )
+        .context("构建 plat_world_pre 失败")?;
         Ok(PlatServer {
             pre,
             plugin_config,
@@ -125,10 +136,8 @@ impl PlatServer {
         let (mut write, mut read) = ws_stream.split();
 
         match read.next().await.unwrap()? {
-            Message::Text(text) => {
-                if text != "Ready" {
-                    return Err(anyhow!("注册 Plugin 失败"));
-                }
+            Message::Text(daemon_public_key) => {
+                self.daemon_public_key = daemon_public_key;
             }
             _ => return Err(anyhow!("注册 Plugin 失败")),
         }
@@ -151,11 +160,16 @@ impl PlatServer {
                         recv = read.next() => {
                             match recv {
                                 Some(msg) => {
-                                    match msg.unwrap() {
-                                        Message::Ping(inner) => {
-                                            write.send(Message::Pong(inner)).await.unwrap();
+                                    match msg {
+                                        Err(_) => break,
+                                        Ok(msg) => {
+                                            match msg {
+                                                Message::Ping(inner) => {
+                                                    write.send(Message::Pong(inner)).await.unwrap();
+                                                },
+                                                _ => (),
+                                            }
                                         },
-                                        _ => (),
                                     }
                                 },
                                 None => break,
