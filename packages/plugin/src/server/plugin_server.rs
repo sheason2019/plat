@@ -60,8 +60,12 @@ impl PluginServer {
                     plat_server.pre.engine(),
                     crate::plat_bindings::Component::new(&plat_server),
                 );
-                let world = plat_server.pre.instantiate_async(&mut store).await.unwrap();
-                world.lifecycle().call_on_start(&mut store).await.unwrap();
+                let world = plat_server.pre.instantiate(&mut store).unwrap();
+                world
+                    .lifecycle()
+                    .call_on_start(&mut store)
+                    .expect("调用 onStart 生命周期失败")
+                    .expect("onStart 生命周期返回了一个错误");
             }
         });
         tokio::task::spawn({

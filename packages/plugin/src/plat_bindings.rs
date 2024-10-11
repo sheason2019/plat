@@ -1,7 +1,9 @@
 use std::fs;
 
+use channel::ChannelHandler;
+use lock::LockHandler;
 use wasmtime::component::ResourceTable;
-use wasmtime_wasi::{async_trait, DirPerms, FilePerms, WasiCtx, WasiCtxBuilder, WasiView};
+use wasmtime_wasi::{DirPerms, FilePerms, WasiCtx, WasiCtxBuilder, WasiView};
 use wasmtime_wasi_http::{WasiHttpCtx, WasiHttpView};
 
 use crate::server::wasi::PlatServer;
@@ -9,7 +11,6 @@ use crate::server::wasi::PlatServer;
 wasmtime::component::bindgen!({
   path: "wit",
   world: "plat-world",
-  async: true,
   trappable_imports: true,
   require_store_data_send: true,
   with: {
@@ -72,59 +73,79 @@ impl Component {
     }
 }
 
-#[async_trait]
 impl lock::Host for Component {
-    async fn create_lock_handler(&mut self, name: String) -> wasmtime::Result<lock::LockHandler> {
+    fn create_lock_handler(
+        &mut self,
+        name: wasmtime::component::__internal::String,
+    ) -> wasmtime::Result<Result<LockHandler, wasmtime::component::__internal::String>> {
         todo!()
     }
 
-    async fn drop_lock_handler(&mut self, handler: lock::LockHandler) -> wasmtime::Result<()> {
+    fn drop_lock_handler(
+        &mut self,
+        handler: LockHandler,
+    ) -> wasmtime::Result<Result<(), wasmtime::component::__internal::String>> {
         todo!()
     }
 
-    async fn lock(&mut self, handler: lock::LockHandler) -> wasmtime::Result<()> {
-        // self.lock_handler.lock().await.lock(id).await
+    fn lock(
+        &mut self,
+        handler: LockHandler,
+    ) -> wasmtime::Result<Result<(), wasmtime::component::__internal::String>> {
         todo!()
     }
 
-    async fn unlock(&mut self, handler: lock::LockHandler) -> wasmtime::Result<()> {
-        // self.lock_handler.lock().await.unlock(id).await
+    fn unlock(
+        &mut self,
+        handler: LockHandler,
+    ) -> wasmtime::Result<Result<(), wasmtime::component::__internal::String>> {
         todo!()
     }
 }
 
-#[async_trait]
 impl channel::Host for Component {
-    async fn create_channel_handler(
+    fn create_channel_handler(
         &mut self,
-        name: String,
-    ) -> wasmtime::Result<channel::ChannelHandler> {
+        name: wasmtime::component::__internal::String,
+    ) -> wasmtime::Result<Result<ChannelHandler, String>> {
         todo!()
     }
 
-    async fn drop_channel_handler(
+    fn drop_channel_handler(
         &mut self,
-        handler: channel::ChannelHandler,
-    ) -> wasmtime::Result<()> {
+        handler: ChannelHandler,
+    ) -> wasmtime::Result<Result<(), String>> {
         todo!()
     }
 
-    async fn send(
+    fn send(
         &mut self,
-        handler: channel::ChannelHandler,
-        message: String,
-    ) -> wasmtime::Result<()> {
+        handler: ChannelHandler,
+        message: wasmtime::component::__internal::String,
+    ) -> wasmtime::Result<Result<(), String>> {
         todo!()
     }
 
-    async fn recv(&mut self, handler: channel::ChannelHandler) -> wasmtime::Result<String> {
+    fn recv(&mut self, handler: ChannelHandler) -> wasmtime::Result<Result<(), String>> {
         todo!()
     }
 }
 
-#[async_trait]
 impl task::Host for Component {
-    async fn spawn(&mut self, payload: String) -> wasmtime::Result<()> {
+    fn spawn(
+        &mut self,
+        payload: wasmtime::component::__internal::String,
+    ) -> wasmtime::Result<Result<(), String>> {
+        todo!()
+    }
+}
+
+impl plat::Host for Component {
+    fn sig(&mut self, source: Vec<u8>) -> wasmtime::Result<Result<Vec<u8>, String>> {
+        todo!()
+    }
+
+    fn verify(&mut self, source: Vec<u8>, sig: Vec<u8>) -> wasmtime::Result<Result<bool, String>> {
         todo!()
     }
 }

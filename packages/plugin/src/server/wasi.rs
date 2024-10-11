@@ -92,12 +92,11 @@ impl PlatServer {
         let pre = self.pre.clone();
 
         let task = tokio::task::spawn(async move {
-            let proxy = pre.instantiate_async(&mut store).await?;
+            let proxy = pre.instantiate(&mut store)?;
 
             if let Err(e) = proxy
                 .wasi_http_incoming_handler()
                 .call_handle(store, req, out)
-                .await
             {
                 return Err(e);
             }
