@@ -12,6 +12,7 @@ import { connectionState } from "../connection-provider/context";
 import { useRecoilValue } from "recoil";
 import PluginEntry from "./plugin-entry";
 import { Fragment } from "react/jsx-runtime";
+import useOrigin from "../../hooks/use-origin";
 
 interface Props {
   isOpen: boolean;
@@ -20,6 +21,7 @@ interface Props {
 
 export default function DaemonControlModal({ isOpen, onClose }: Props) {
   const connection = useRecoilValue(connectionState);
+  const origin = useOrigin();
 
   const handleExit = async () => {
     window.parent.postMessage({ type: "exit" }, "*");
@@ -33,7 +35,7 @@ export default function DaemonControlModal({ isOpen, onClose }: Props) {
             <p>菜单</p>
             <div className="text-sm text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis">
               <p>账号公钥：{connection.daemon?.public_key}</p>
-              <p>网络地址：{location.origin}</p>
+              <p>网络地址：{origin}</p>
             </div>
           </div>
         </ModalHeader>

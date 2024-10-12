@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import WujieReact from "wujie-react";
 
 interface Props {
   address: string;
@@ -29,5 +30,13 @@ export default function DaemonFrame({ address }: Props) {
     return () => window.removeEventListener("message", handler);
   }, [iframeRef]);
 
-  return <iframe ref={iframeRef} src={address} className="w-full h-full" />;
+  return (
+    <WujieReact
+      width="100%"
+      height="100%"
+      name={`daemon/${address}`}
+      url={address}
+      sync={true}
+    />
+  );
 }

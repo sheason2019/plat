@@ -4,7 +4,7 @@ world plat-world {
     include wasi:http/proxy@0.2.0;
     
     export lifecycle: interface {
-        on-start: func() -> result<_, string>;
+        on-start: func();
     }
 
     import lock: interface {
@@ -12,11 +12,11 @@ world plat-world {
             name: string,
         }
 
-        create-lock-handler: func(name: string) -> result<lock-handler, string>;
-        drop-lock-handler: func(handler: lock-handler) -> result<_, string>;
+        create-lock-handler: func(name: string) -> lock-handler;
+        drop-lock-handler: func(handler: lock-handler);
 
-        lock: func(handler: lock-handler) -> result<_, string>;
-        unlock: func(handler: lock-handler) -> result<_, string>;
+        lock: func(handler: lock-handler);
+        unlock: func(handler: lock-handler);
     }
 
     import channel: interface {
@@ -24,22 +24,22 @@ world plat-world {
             name: string,
         }
 
-        create-channel-handler: func(name: string) -> result<channel-handler, string>;
-        drop-channel-handler: func(handler: channel-handler) -> result<_, string>;
+        create-channel-handler: func(name: string) -> channel-handler;
+        drop-channel-handler: func(handler: channel-handler);
 
-        send: func(handler: channel-handler, message: string) -> result<_, string>;
-        recv: func(handler: channel-handler) -> result<_, string>;
+        send: func(handler: channel-handler, message: string);
+        recv: func(handler: channel-handler);
     }
 
     import task: interface {
-        spawn: func(payload: string) -> result<_, string>;
+        spawn: func(payload: string);
     }
     export task: interface {
-        on-spawn: func(payload: string) -> result<_, string>;
+        on-spawn: func(payload: string);
     }
 
     import plat: interface {
-        sig: func(source: list<u8>) -> result<list<u8>, string>;
-        verify: func(source: list<u8>, sig: list<u8>) -> result<bool, string>;
+        sig: func(source: list<u8>) -> list<u8>;
+        verify: func(source: list<u8>, sig: list<u8>) -> bool;
     }
 }

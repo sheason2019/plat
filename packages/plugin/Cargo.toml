@@ -18,3 +18,6 @@ futures-util = "0.3.30"
 serde = { workspace = true, features = ["derive"] }
 rand = "0.8.5"
 base64 = "0.22.1"
+tower = { version = "0.5.1", features = ["util"] }
+tower-http = { version = "0.6.1", features = ["cors"] }
+hyper-util = { version = "0.1.9", features = ["service"] }

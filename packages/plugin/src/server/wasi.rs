@@ -4,6 +4,8 @@ use std::time::Duration;
 
 use anyhow::{anyhow, Context};
 use futures_util::{SinkExt, StreamExt};
+use hyper::body::Incoming;
+use hyper::Request;
 use tokio::sync::broadcast::Sender;
 use tokio_tungstenite::tungstenite::Message;
 use url::Url;
@@ -83,7 +85,7 @@ impl PlatServer {
 
     pub async fn handle_request(
         &self,
-        req: hyper::Request<hyper::body::Incoming>,
+        req: Request<Incoming>,
     ) -> Result<hyper::Response<HyperOutgoingBody>> {
         let mut store = Store::new(self.pre.engine(), plat_bindings::Component::new(&self));
         let (sender, receiver) = tokio::sync::oneshot::channel();
@@ -92,11 +94,12 @@ impl PlatServer {
         let pre = self.pre.clone();
 
         let task = tokio::task::spawn(async move {
-            let proxy = pre.instantiate(&mut store)?;
+            let proxy = pre.instantiate_async(&mut store).await?;
 
             if let Err(e) = proxy
                 .wasi_http_incoming_handler()
                 .call_handle(store, req, out)
+                .await
             {
                 return Err(e);
             }

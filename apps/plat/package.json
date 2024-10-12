@@ -23,7 +23,8 @@
     "react-router-dom": "^6.26.2",
     "recoil": "^0.7.7",
     "swr": "^2.2.5",
-    "vaul": "^1.0.0"
+    "vaul": "^1.0.0",
+    "wujie-react": "^1.0.22"
   },
   "devDependencies": {
     "@tauri-apps/cli": "2.0.1",

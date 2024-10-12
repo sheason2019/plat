@@ -5,6 +5,7 @@ import ConnectionClose from "./close";
 import { useSetRecoilState } from "recoil";
 import { connectionState } from "./context";
 import useConfirmModal from "../confirm-modal/hooks/use-confirm-modal";
+import useOrigin from "../../hooks/use-origin";
 
 export default function ConnectionProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState(ConnectionStatus.Pending);
@@ -13,12 +14,15 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
 
   const setConnection = useSetRecoilState(connectionState);
 
+  const connectionOrigin: string = useOrigin().replace("http", "ws");
+
   useEffect(() => {
     setStatus(ConnectionStatus.Pending);
 
-    const ws = new WebSocket(
-      `${location.origin.replace("http", "ws")}/api/connect`
-    );
+    const origin = connectionOrigin.endsWith("/")
+      ? connectionOrigin.slice(0, -1)
+      : connectionOrigin;
+    const ws = new WebSocket(`${origin}/api/connect`);
 
     const handleMessage = async (message: string) => {
       const data: {
@@ -68,7 +72,12 @@ export default function ConnectionProvider({ children }: PropsWithChildren) {
       ws.close();
       setConnection((prev) => ({ ...prev, ws: undefined }));
     };
-  }, [confirmInstallPlugin, confirmDeletePlugin, setConnection]);
+  }, [
+    connectionOrigin,
+    confirmInstallPlugin,
+    confirmDeletePlugin,
+    setConnection,
+  ]);
 
   if (status === ConnectionStatus.Pending) {
     return <ConnectionPending />;

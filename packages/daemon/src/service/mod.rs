@@ -13,7 +13,11 @@ use handlers::{
 use plugin::{models::Plugin, Options, PluginServer};
 use serde_json::{json, Value};
 use tokio::sync::{broadcast::Sender, Mutex};
-use tower_http::services::{ServeDir, ServeFile};
+use tower::ServiceBuilder;
+use tower_http::{
+    cors::{AllowHeaders, AllowMethods, AllowOrigin},
+    services::{ServeDir, ServeFile},
+};
 use typings::{VerifyRequest, VerifyResponse};
 
 mod handlers;
@@ -74,6 +78,15 @@ impl DaemonServer {
                             .delete(delete_plugin_handler),
                     )
                     .fallback_service(serve_dir)
+                    .layer(
+                        ServiceBuilder::new().layer(
+                            tower_http::cors::CorsLayer::new()
+                                .allow_methods(AllowMethods::mirror_request())
+                                .allow_origin(AllowOrigin::mirror_request())
+                                .allow_credentials(true)
+                                .allow_headers(AllowHeaders::mirror_request()),
+                        ),
+                    )
                     .with_state(service.clone());
                 axum::serve(tcp_listener, app)
                     .with_graceful_shutdown(async move {

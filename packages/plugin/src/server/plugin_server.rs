@@ -5,10 +5,12 @@ use crate::models::Plugin;
 use crate::server::wasi::PlatServer;
 use anyhow::Context;
 use http_body_util::{BodyExt, Full};
+use hyper::body::Incoming;
 use hyper::server::conn::http1;
-use hyper::{Method, Response};
+use hyper::{Method, Request, Response};
 use tokio::net::TcpListener;
 use tokio::sync::broadcast::Sender;
+use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin};
 use wasmtime::{Result, Store};
 use wasmtime_wasi_http::body::HyperOutgoingBody;
 use wasmtime_wasi_http::io::TokioIo;
@@ -60,12 +62,12 @@ impl PluginServer {
                     plat_server.pre.engine(),
                     crate::plat_bindings::Component::new(&plat_server),
                 );
-                let world = plat_server.pre.instantiate(&mut store).unwrap();
+                let world = plat_server.pre.instantiate_async(&mut store).await.unwrap();
                 world
                     .lifecycle()
                     .call_on_start(&mut store)
-                    .expect("调用 onStart 生命周期失败")
-                    .expect("onStart 生命周期返回了一个错误");
+                    .await
+                    .expect("调用 onStart 生命周期失败");
             }
         });
         tokio::task::spawn({
@@ -90,29 +92,38 @@ impl PluginServer {
 
                     let plat_server = plat_server.clone();
                     tokio::task::spawn(async move {
-                        if let Err(_e) = http1::Builder::new()
-                            .serve_connection(
-                                TokioIo::new(client),
-                                hyper::service::service_fn(move |req| {
-                                    let plat_server = plat_server.clone();
-                                    async move {
-                                        let method = req.method();
-                                        let uri = req.uri();
-                                        let path = uri.path();
+                        let svc = tower::service_fn(move |req: Request<Incoming>| {
+                            let plat_server = plat_server.clone();
+                            async move {
+                                let method = req.method();
+                                let uri = req.uri();
+                                let path = uri.path();
 
-                                        match (method, path) {
-                                            (&Method::GET, "/plugin.json") => {
-                                                send_plugin_json(req, &plat_server.plugin_config)
-                                            }
-                                            (_method, _uri) => {
-                                                plat_server.handle_request(req).await
-                                            }
-                                        }
+                                match (method, path) {
+                                    (&Method::GET, "/plugin.json") => {
+                                        send_plugin_json(req, &plat_server.plugin_config)
                                     }
-                                }),
+                                    (_method, _uri) => plat_server.handle_request(req).await,
+                                }
+                            }
+                        });
+                        let svc = tower::ServiceBuilder::new()
+                            .layer(
+                                tower_http::cors::CorsLayer::new()
+                                    .allow_methods(AllowMethods::mirror_request())
+                                    .allow_origin(AllowOrigin::mirror_request())
+                                    .allow_credentials(true)
+                                    .allow_headers(AllowHeaders::mirror_request()),
                             )
+                            .service(svc);
+                        let svc = hyper_util::service::TowerToHyperService::new(svc);
+
+                        if let Err(e) = http1::Builder::new()
+                            .serve_connection(TokioIo::new(client), svc)
                             .await
-                        {}
+                        {
+                            println!("handle request error: {:?}", e);
+                        }
                     });
                 }
             }
@@ -141,7 +152,7 @@ impl PluginServer {
 }
 
 fn send_plugin_json(
-    _req: hyper::Request<hyper::body::Incoming>,
+    _req: Request<Incoming>,
     plugin_config: &crate::models::Plugin,
 ) -> Result<hyper::Response<HyperOutgoingBody>> {
     let plugin_json = serde_json::to_string(&plugin_config)?.as_bytes().to_vec();
